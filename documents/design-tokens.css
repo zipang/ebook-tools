@@ -1,0 +1,126 @@
+/* ============================================================================
+   READING THEME — Design System token stylesheet
+   ----------------------------------------------------------------------------
+   Source palette and type borrowed from cydstumpel.nl:
+     background  seashell #fff5ee   text/accent  #111111   highlight  #e2fc91
+     headings    Instrument Serif   body         Geist     code       JetBrains Mono
+   Every token from the design-system-tokens skill is exposed here as a CSS
+   variable inside one :root block, following the naming convention:
+       category.role.variant  ->  --category-role-variant
+   The front matter of DESIGN.md lists the tokens the designer chose to define.
+   Optional tokens omitted there appear below as var() fallbacks to a required
+   token. To re-theme the extracted documents, edit only this :root block and
+   the matching block in src/templates/default/print.css.
+   ========================================================================== */
+
+:root {
+	/* ==========================================================================
+	   1. TYPOGRAPHY — Geist for body, Instrument Serif for display
+	   ======================================================================== */
+
+	/* --- Font families --- */
+	--font-family-base: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-family-display: "Instrument Serif", "Times New Roman", Georgia, serif;
+	--font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+	/* --- Typographic scale — geometric, ratio 1.25 (Major Third) ---
+	   size(step) = 1rem * 1.25^step, base = step 0 (always 1rem). */
+	--font-size-base: 1rem;
+
+	--font-size-xs: 0.64rem; /* 1.25^-2 — captions, metadata, timestamps */
+	--font-size-sm: 0.8rem; /* 1.25^-1 — secondary text, list rows      */
+	--font-size-md: 1rem; /* step 0 — body text                       */
+	--font-size-lg: 1.25rem; /* 1.25^1 — section titles, card titles      */
+	--font-size-xl: 1.5625rem; /* 1.25^2 — page titles, large prompts      */
+	--font-size-2xl: 1.9531rem; /* 1.25^3 — hero titles (overridden)        */
+	--font-size-display: 2.4414rem; /* 1.25^4 — display headlines (overridden)  */
+
+	/* --- Font weights --- */
+	--font-weight-regular: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: var(--font-weight-bold); /* optional → var(--font-weight-bold) */
+	--font-weight-bold: 700;
+	--font-weight-extrabold: var(--font-weight-bold); /* optional → var(--font-weight-bold) */
+
+	/* --- Line heights --- */
+	--line-height-tight: 1.15; /* headings, single-line titles       */
+	--line-height-normal: 1.55; /* body text, multi-line descriptions  */
+	--line-height-relaxed: var(--line-height-normal); /* optional → var(--line-height-normal) */
+
+	/* --- Letter spacing --- */
+	--letter-spacing-tight: -0.02em; /* large headings, display text       */
+	--letter-spacing-normal: 0; /* body text, default tracking        */
+	--letter-spacing-wide: var(--letter-spacing-normal); /* optional → var(--letter-spacing-normal) */
+
+	/* ==========================================================================
+	   2. COLORS — near-black, seashell, and a lime highlight
+	   ------------------------------------------------------------------------
+	   Brand and action colors carry `muted` and `active` variants derived in
+	   color-variants.css: muted softens, active strengthens. Text and surface
+	   colors define their own variants explicitly below.
+	   ======================================================================== */
+
+	/* --- Brand: Primary (#111111) — headings, highlights, logo, header --- */
+	--color-brand-primary: #111111;
+
+	/* --- Brand: Accent (#e2fc91 lime) — CTAs, key accents --- */
+	--color-brand-accent: #e2fc91;
+
+	/* --- Brand: Secondary (optional → primary) --- */
+	--color-brand-secondary: var(--color-brand-primary);
+
+	/* --- Brand: Tertiary (optional → primary) --- */
+	--color-brand-tertiary: var(--color-brand-primary);
+
+	/* --- Action: colors taken from the code theme on the source page --- */
+	--color-action-success: #b5cea8;
+	--color-action-info: #9cdcfe;
+	--color-action-warning: #d7ba7d;
+	--color-action-danger: #f13e3e;
+
+	/* --- Text colors --- */
+	--color-text: #111111;
+	--color-text-accent: var(--color-text); /* optional → var(--color-text)   */
+	--color-text-muted: var(--color-text); /* optional → var(--color-text)   */
+	--color-text-ondark: var(--color-surface); /* optional → var(--color-surface) */
+
+	/* --- Surface colors --- */
+	--color-surface: #fff5ee; /* seashell — default page background        */
+	--color-surface-alt: #f1e7e1; /* warm tint of the base (alt sections)      */
+	--color-surface-dark: var(--color-text); /* optional → var(--color-text)    */
+	--color-surface-card: var(--color-surface); /* optional → var(--color-surface)  */
+
+	/* ==========================================================================
+	   3. SPACING — 4px linear scale (space.base = 1rem = step 0)
+	   ======================================================================== */
+	--space-xs: 0.25rem; /*  4px — tight gaps, icon-to-text              */
+	--space-sm: 0.5rem; /*  8px — chip padding, compact list rows       */
+	--space-md: 0.75rem; /* 12px — button padding, card internal spacing */
+	--space-base: 1rem; /* 16px — default gap, paragraph spacing        */
+	--space-lg: 1.25rem; /* 20px — section padding, larger card gaps     */
+	--space-xl: 2rem; /* 32px — section-to-section spacing            */
+	--space-xxl: 3rem; /* 48px — page-level vertical rhythm            */
+
+	/* ==========================================================================
+	   4. ROUNDED — 4px, 8px, 16px, and circular
+	   ======================================================================== */
+	--rounded-none: 0;
+	--rounded-sm: 0.25rem;
+	--rounded-md: 0.5rem; /* matches the source --border-radius */
+	--rounded-lg: 1rem;
+	--rounded-full: 9999px;
+
+	/* ==========================================================================
+	   5. ELEVATION — flat preset; depth comes from color and spacing
+	   ======================================================================== */
+	--elevation-sm: none;
+	--elevation-md: none;
+	--elevation-lg: none;
+
+	/* ==========================================================================
+	   6. BORDERS — 124 preset widths (1px / 2px / 4px)
+	   ======================================================================== */
+	--border-sm: 1px;
+	--border-md: 2px;
+	--border-lg: 4px;
+}
