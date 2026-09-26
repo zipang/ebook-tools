@@ -8,12 +8,18 @@
 		"serve": "bun src/cli.ts serve",
 		"build": "bun src/cli.ts build",
 		"delete": "bun src/cli.ts delete",
+		"translate": "bun src/cli.ts translate",
+		"benchmark:translate": "bun scripts/benchmark-translate.ts",
 		"test": "bun test",
 		"test:coverage": "bun test --coverage",
 		"lint": "biome check .",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@ai-sdk/google": "^4.0.82",
+		"@ai-sdk/openai": "^4.0.78",
+		"@ai-sdk/openai-compatible": "^3.0.57",
+		"ai": "^7.0.116",
 		"commander": "15.0.0",
 		"domhandler": "6.0.1",
 		"fflate": "0.8.3",

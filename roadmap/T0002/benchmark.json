@@ -1,0 +1,194 @@
+{
+  "document": "steve-krug-don-t-make-me-think-1984",
+  "language": "fr",
+  "promptVersion": "t0002-v1",
+  "generatedAt": "2026-09-26T19:14:10.104Z",
+  "models": [
+    "gpt-6-luna",
+    "deepseek-v4-flash",
+    "glm-5.3-flash",
+    "gpt-5.6-luna",
+    "deepseek-v4.1-flash",
+    "minimax-m3",
+    "gemini-3.5-flash-lite",
+    "gemini-3-flash",
+    "glm-5.3"
+  ],
+  "rows": [
+    {
+      "model": "gpt-6-luna",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 59408,
+      "inputTokens": 9891,
+      "outputTokens": 11564,
+      "costUsd": 0.005881,
+      "ok": true,
+      "outputPath": "benchmark-output/gpt-6-luna/011-chapter-9.md"
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 126875,
+      "inputTokens": 10251,
+      "outputTokens": 44360,
+      "costUsd": 0.013856,
+      "ok": true,
+      "outputPath": "benchmark-output/deepseek-v4-flash/011-chapter-9.md"
+    },
+    {
+      "model": "glm-5.3-flash",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 86939,
+      "inputTokens": 9929,
+      "outputTokens": 12274,
+      "costUsd": 0.007626,
+      "ok": true,
+      "outputPath": "benchmark-output/glm-5.3-flash/011-chapter-9.md"
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 69720,
+      "inputTokens": 3,
+      "outputTokens": 11381,
+      "costUsd": 0.013658,
+      "ok": true,
+      "outputPath": "benchmark-output/gpt-5.6-luna/011-chapter-9.md"
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 200295,
+      "inputTokens": 10173,
+      "outputTokens": 13047,
+      "costUsd": 0.018708,
+      "ok": true,
+      "outputPath": "benchmark-output/deepseek-v4.1-flash/011-chapter-9.md"
+    },
+    {
+      "model": "minimax-m3",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 62261,
+      "inputTokens": 9897,
+      "outputTokens": 11161,
+      "costUsd": 0.016335,
+      "ok": true,
+      "outputPath": "benchmark-output/minimax-m3/011-chapter-9.md"
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 72400,
+      "inputTokens": 10586,
+      "outputTokens": 12676,
+      "costUsd": 0.034866,
+      "ok": true,
+      "outputPath": "benchmark-output/gemini-3.5-flash-lite/011-chapter-9.md"
+    },
+    {
+      "model": "gemini-3-flash",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 96153,
+      "inputTokens": 10586,
+      "outputTokens": 13769,
+      "costUsd": 0.0466,
+      "ok": false,
+      "outputPath": "benchmark-output/gemini-3-flash/011-chapter-9.md",
+      "error": "Block 1 changed. Expected {\"kind\":\"heading\",\"level\":2} but found {\"kind\":\"paragraph\"}. Block 2 changed. Expected {\"kind\":\"paragraph\"} but found {\"kind\":\"heading\",\"level\":2}. Block 13 changed. Expected {\"kind\":\"heading\",\"level\":3} but found {\"kind\":\"paragraph\"}. Block 14 changed. Expected {\"kind\":\"paragraph\"} but found {\"kind\":\"heading\",\"level\":3}. Block 25 changed. Expected {\"kind\":\"heading\",\"level\":3} but found {\"kind\":\"paragraph\"}. More structural differences were omitted. Link target 8 changed. Expected \"/read/unit-011#ch09fn4a\" but found \"/read/unit-011#ch09fn4\". Link target 9 changed. Expected \"/read/unit-011#ch09fn4\" but found \"http://nngroup.com/reports/tips/recruiting\". Link target 10 changed. Expected \"http://nngroup.com/reports/tips/recruiting\" but found \"http://rocketsurgerymadeeasy.com\". Link target 14 changed. Expected \"http://rocketsurgerymadeeasy.com\" but found \"/read/unit-011#ch09fn5a\". Link target 15 changed. Expected \"/read/unit-011#ch09fn5a\" but found \"/read/unit-011#ch09fn5\". Link target 16 changed. Expected \"/read/unit-011#ch09fn5\" but found \"nothing\"."
+    },
+    {
+      "model": "glm-5.3",
+      "unitId": "unit-011",
+      "unitTitle": "Chapter 9. Usability testing on 10 cents a day",
+      "chars": 43430,
+      "durationMs": 207768,
+      "inputTokens": 9929,
+      "outputTokens": 16384,
+      "costUsd": 0.085975,
+      "ok": false,
+      "outputPath": "benchmark-output/glm-5.3/011-chapter-9.md",
+      "error": "Model output was truncated at maxOutputTokens=16384"
+    }
+  ],
+  "summaries": [
+    {
+      "model": "gpt-6-luna",
+      "units": 1,
+      "totalDurationMs": 59408,
+      "totalCostUsd": 0.005881,
+      "failed": 0
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "units": 1,
+      "totalDurationMs": 126875,
+      "totalCostUsd": 0.013856,
+      "failed": 0
+    },
+    {
+      "model": "glm-5.3-flash",
+      "units": 1,
+      "totalDurationMs": 86939,
+      "totalCostUsd": 0.007626,
+      "failed": 0
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "units": 1,
+      "totalDurationMs": 69720,
+      "totalCostUsd": 0.013658,
+      "failed": 0
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "units": 1,
+      "totalDurationMs": 200295,
+      "totalCostUsd": 0.018708,
+      "failed": 0
+    },
+    {
+      "model": "minimax-m3",
+      "units": 1,
+      "totalDurationMs": 62261,
+      "totalCostUsd": 0.016335,
+      "failed": 0
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "units": 1,
+      "totalDurationMs": 72400,
+      "totalCostUsd": 0.034866,
+      "failed": 0
+    },
+    {
+      "model": "gemini-3-flash",
+      "units": 1,
+      "totalDurationMs": 96153,
+      "totalCostUsd": 0.0466,
+      "failed": 1
+    },
+    {
+      "model": "glm-5.3",
+      "units": 1,
+      "totalDurationMs": 207768,
+      "totalCostUsd": 0.085975,
+      "failed": 1
+    }
+  ]
+}

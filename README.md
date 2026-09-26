@@ -67,6 +67,45 @@ bun run delete -- --document example-book --parts 1 3 8
 
 The command removes the numbered units. The numbers start at 1 and follow the index order. The remaining units keep their order and get new numbers that close the gaps. Internal links update to the new unit numbers. Images that no unit references are removed. At least one unit must remain.
 
+### Translate one document
+
+```bash
+# Estimate the cost without calling a model
+bun run translate -- --document example-book --to fr --dry-run
+
+# Translate into a sibling project documents/example-book-fr/
+bun run translate -- --document example-book --to fr
+
+# Choose a model, bound the parallelism, and cap the cost
+bun run translate -- --document example-book --to fr --model deepseek-v4.1-flash --concurrency 4 --max-cost 2
+
+# Translate a subset and copy the remaining units from the source
+bun run translate -- --document example-book --to fr --only 3 4 5
+
+# Replace an existing translated project
+bun run translate -- --document example-book --to fr --force
+```
+
+`translate` reads one extracted document, calls a model once per Markdown unit, validates every answer against the source structure, and writes a standalone sibling project `documents/<document-name>-<lang>/`. The sibling project keeps the unit ids, unit paths, images, and templates of the source, so `serve` and `build` accept it without any change. A structure violation is never retried; the unit is marked failed and the run returns a non-zero exit code unless `--best-effort` copies the failed units from the source.
+
+Model access uses the OpenCode Zen gateway. Export `OPENCODE_API_KEY` before a run; `OPENCODE_ZEN_BASE_URL` overrides the default `https://opencode.ai/zen/v1`. Models are declared in `src/translate/providers/registry.ts` with their endpoint family and price.
+
+Per-unit results are cached in `reports/translation.cache.json`, so a rerun skips unchanged units. Reports land in `reports/translation.md` and `reports/translation.json`.
+
+### Compare translation models
+
+The model comparison tool is a one-off experiment. It lives in `scripts/benchmark-translate.ts` and is not part of the shipped command line. It chose the default translation model. Use it again only to compare new candidates.
+
+```bash
+# List the candidate models, units, and estimated cost without calling a model
+bun scripts/benchmark-translate.ts --document example-book --to fr --only 11 --dry-run
+
+# Run every candidate on selected units and write a review report
+bun scripts/benchmark-translate.ts --document example-book --to fr --only 11
+```
+
+The tool runs one candidate at a time at concurrency 1, so the duration is comparable. It stores the translated Markdown of every model under `roadmap/T0002/benchmark-output/<model>/`, copies the source images next to them, and writes `roadmap/T0002/benchmark.md` (details and summary tables) with the measured time and cost. The tool never fills the quality columns: a human reviewer opens each stored translation, writes a `Quality /10`, and fills the average and the verdict. `roadmap/T0002/benchmark.json` holds the raw rows.
+
 ## Project layout
 
 ```text
@@ -80,6 +119,7 @@ documents/
     reports/                     Human and machine extraction reports
     generated/                   Disposable HTML and PDF output
 src/                             Bun and TypeScript source
+scripts/                         One-off tools, such as the model benchmark
 tests/                           Unit, integration, and fixture tests
 roadmap/T0001/                   Approved specification and plan
 ```

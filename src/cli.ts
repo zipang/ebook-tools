@@ -3,6 +3,7 @@ import { runBuild } from "./commands/build.ts";
 import { runDelete } from "./commands/delete.ts";
 import { runExtract } from "./commands/extract.ts";
 import { runServe } from "./commands/serve.ts";
+import { runTranslate, type TranslateCommandOptions } from "./commands/translate.ts";
 
 export type ExtractOptions = {
 	input?: string;
@@ -33,6 +34,7 @@ export type CliActions = {
 	serve: (options: ServeOptions) => Promise<void>;
 	build: (options: BuildOptions) => Promise<void>;
 	delete: (options: DeleteOptions) => Promise<void>;
+	translate: (options: TranslateCommandOptions) => Promise<void>;
 };
 
 /** Create the Commander program for the document pipeline. */
@@ -68,6 +70,28 @@ export const createProgram = (
 			console.log(
 				`Deleted ${result.removedTitles.length} unit(s) from ${options.document}; ${result.remainingCount} remain.`
 			);
+		},
+		translate: async (options) => {
+			const result = await runTranslate(options, process.cwd());
+
+			if (options.json) {
+				console.log(JSON.stringify(result, null, 2));
+			} else if (result.dryRun) {
+				console.log(
+					`Dry run: ${result.estimate?.units ?? 0} unit(s) to ${result.model} in ${options.to}; estimated cost $${result.costUsd.toFixed(4)}.`
+				);
+			} else {
+				console.log(
+					`Translated ${result.translated} unit(s), reused ${result.cached}, skipped ${result.skipped}, failed ${result.failed} in ${(result.wallClockMs / 1000).toFixed(1)}s into ${result.outputDir}.`
+				);
+				console.log(
+					`Model ${result.model}, ${(result.durationMs / 1000).toFixed(1)}s, cost $${result.costUsd.toFixed(4)}.`
+				);
+			}
+
+			if (result.failed > 0) {
+				process.exitCode = 1;
+			}
 		}
 	}
 ): Command => {
@@ -121,6 +145,56 @@ export const createProgram = (
 				parts: options.parts.map((part) => Number(part))
 			});
 		});
+
+	program
+		.command("translate")
+		.description("Translate one extracted document into a target language")
+		.requiredOption("--document <name>", "Directory name under documents/")
+		.requiredOption("--to <lang>", "Target language tag, for example fr")
+		.option("--model <id>", "Model identifier from the registry")
+		.option("--out-document <name>", "Output project directory name")
+		.option("--concurrency <n>", "Maximum parallel model calls", "4")
+		.option("--only <parts...>", "Translate only these 1-based unit numbers")
+		.option("--force", "Replace an existing translated project")
+		.option("--dry-run", "Estimate the cost without calling a model")
+		.option("--no-cache", "Ignore and do not write the per-unit cache")
+		.option("--best-effort", "Copy failed units from the source instead of failing the run")
+		.option("--max-cost <usd>", "Stop the run when this cost is reached")
+		.option("--report <path>", "Write the Markdown report to this path")
+		.option("--json", "Print a machine-readable summary")
+		.action(
+			async (options: {
+				document: string;
+				to: string;
+				model?: string;
+				outDocument?: string;
+				concurrency: string;
+				only?: string[];
+				force?: boolean;
+				dryRun?: boolean;
+				cache?: boolean;
+				bestEffort?: boolean;
+				maxCost?: string;
+				report?: string;
+				json?: boolean;
+			}) => {
+				await actions.translate({
+					document: options.document,
+					to: options.to,
+					model: options.model,
+					outDocument: options.outDocument,
+					concurrency: Number(options.concurrency),
+					only: options.only?.map((part) => Number(part)),
+					force: options.force ?? false,
+					dryRun: options.dryRun,
+					cache: options.cache ?? true,
+					bestEffort: options.bestEffort ?? false,
+					maxCost: options.maxCost === undefined ? undefined : Number(options.maxCost),
+					report: options.report,
+					json: options.json
+				});
+			}
+		);
 
 	return program;
 };

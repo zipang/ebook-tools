@@ -3,6 +3,10 @@ dist/
 coverage/
 sources/
 documents/*/generated/
+roadmap/T0002/benchmark-output/
 .tmp/
 temp/
+.env
+.env.local
+.env.*.local
 .DS_Store
