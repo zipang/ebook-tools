@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { runBuild } from "./commands/build.ts";
+import { runDelete } from "./commands/delete.ts";
 import { runExtract } from "./commands/extract.ts";
 import { runServe } from "./commands/serve.ts";
 
@@ -22,10 +23,16 @@ export type BuildOptions = {
 	out: string;
 };
 
+export type DeleteOptions = {
+	document: string;
+	parts: number[];
+};
+
 export type CliActions = {
 	extract: (options: ExtractOptions) => Promise<void>;
 	serve: (options: ServeOptions) => Promise<void>;
 	build: (options: BuildOptions) => Promise<void>;
+	delete: (options: DeleteOptions) => Promise<void>;
 };
 
 /** Create the Commander program for the document pipeline. */
@@ -51,6 +58,16 @@ export const createProgram = (
 				out: options.out
 			});
 			console.log(`Built ${options.document} into ${result.outputDir}`);
+		},
+		delete: async (options) => {
+			const result = await runDelete({
+				repositoryRoot: process.cwd(),
+				documentName: options.document,
+				parts: options.parts
+			});
+			console.log(
+				`Deleted ${result.removedTitles.length} unit(s) from ${options.document}; ${result.remainingCount} remain.`
+			);
 		}
 	}
 ): Command => {
@@ -91,6 +108,18 @@ export const createProgram = (
 			}
 
 			await actions.build({ ...options, format: options.format });
+		});
+
+	program
+		.command("delete")
+		.description("Delete units from an extracted document and renumber the rest")
+		.requiredOption("--document <name>", "Directory name under documents/")
+		.requiredOption("--parts <parts...>", "Unit numbers to delete (1-based)")
+		.action(async (options: { document: string; parts: string[] }) => {
+			await actions.delete({
+				document: options.document,
+				parts: options.parts.map((part) => Number(part))
+			});
 		});
 
 	return program;

@@ -59,6 +59,14 @@ bun run build -- --document example-book --format pdf --out generated/pdf
 
 The command writes `document.pdf` locally. It uses the same semantic content and editorial theme as HTML output.
 
+### Delete units
+
+```bash
+bun run delete -- --document example-book --parts 1 3 8
+```
+
+The command removes the numbered units. The numbers start at 1 and follow the index order. The remaining units keep their order and get new numbers that close the gaps. Internal links update to the new unit numbers. Images that no unit references are removed. At least one unit must remain.
+
 ## Project layout
 
 ```text
