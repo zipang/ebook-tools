@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+sources/
+documents/*/generated/
+.tmp/
+temp/
+.DS_Store
