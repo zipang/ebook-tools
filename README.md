@@ -1,23 +1,111 @@
 # Extract and reformat PDF and EPUB documents
 
-This project extracts digital PDF and EPUB files into editable Markdown projects. It serves a selected document as local HTML and builds static HTML or PDF output. The content model stays language-neutral for later translation work.
+This project turns digital PDF and EPUB files into editable Markdown projects. It serves a document as local HTML, builds static HTML or PDF, removes units, and translates a document into another language.
 
-## Requirements
+The project is a set of services. The command line calls those services, and a future Web UI calls the same services. The services return plain data and never write to the terminal, so every user interface reports results the same way.
 
-- Bun 1.4 or later.
-- A digital PDF or an unencrypted EPUB 2 or EPUB 3 file.
+## Services
 
-Scanned PDFs, OCR, DRM-protected files, automated translation, and EPUB output are not included in the first release.
+Each service is one function under `src/commands/`. It takes plain values, including the repository root, and returns a plain result object.
 
-## Install
+| Service | Source | Purpose |
+|---|---|---|
+| `extract` | `src/commands/extract.ts` | Turn a source file into a document project |
+| `serve` | `src/commands/serve.ts` | Serve one document as local HTML |
+| `build` | `src/commands/build.ts` | Write static HTML or PDF output |
+| `delete` | `src/commands/delete.ts` | Remove units and renumber the rest |
+| `translate` | `src/commands/translate.ts` | Write a translated sibling project |
 
-```bash
-bun install
+### extract
+
+The service reads one source file, or every supported file under `sources/`, and writes one document project per source.
+
+```ts
+import { runExtract } from "./src/commands/extract.ts";
+
+const result = await runExtract({ input: "sources/books/example.epub" }, process.cwd());
+
+result.documents;    // One result per written project
+result.failures;     // Sources that failed, with the reason
+result.skippedPaths; // Sources the command ignored
 ```
 
-## Commands
+### serve
 
-Run these commands from the repository root.
+The service starts a local server for one document and returns the running server with its address.
+
+```ts
+import { runServe } from "./src/commands/serve.ts";
+
+const { server, url } = await runServe({ document: "example-book", port: 3000 }, process.cwd());
+
+console.log(url);
+server.stop(true);
+```
+
+### build
+
+The service writes static HTML or a PDF, and returns the files it wrote with the images it could not place.
+
+```ts
+import { runBuild } from "./src/commands/build.ts";
+
+const result = await runBuild(
+  {
+    repositoryRoot: process.cwd(),
+    documentName: "example-book",
+    format: "pdf",
+    out: "generated/pdf"
+  },
+);
+
+result.files;         // Every file the command wrote
+result.skippedImages; // Images the renderer could not place
+```
+
+### delete
+
+The service removes the numbered units, renumbers the rest, and removes images that no unit references. The write is atomic, so a failure leaves the project unchanged.
+
+```ts
+import { runDelete } from "./src/commands/delete.ts";
+
+const result = await runDelete({
+  repositoryRoot: process.cwd(),
+  documentName: "example-book",
+  parts: [1, 3, 8]
+});
+
+result.removedTitles;
+result.remainingCount;
+```
+
+### translate
+
+The service calls a model once per Markdown unit, validates every answer against the source structure, and writes a standalone sibling project. It returns a summary with the counts, the cost, and the duration.
+
+```ts
+import { runTranslate } from "./src/commands/translate.ts";
+
+const result = await runTranslate(
+  {
+    document: "example-book",
+    to: "fr",
+    force: false,
+    cache: true,
+    bestEffort: false
+  },
+  process.cwd()
+);
+
+result.translated;
+result.failed;
+result.costUsd;
+```
+
+## Call the services from the command line
+
+The command line is an adapter over the services. Run these commands from the repository root.
 
 ### Extract one source
 
@@ -25,7 +113,7 @@ Run these commands from the repository root.
 bun run extract -- --input sources/books/example.epub --document example-book
 ```
 
-The `--document` option is optional. Without it, the extractor derives a safe directory name from the source filename. Use `--force` to replace an existing document project.
+The `--document` option is optional. Without it, the service derives a safe directory name from the source filename. Use `--force` to replace an existing document project.
 
 ### Extract the source library
 
@@ -57,7 +145,7 @@ The command writes `index.html`, ordered files under `chapters/`, and a copy of 
 bun run build -- --document example-book --format pdf --out generated/pdf
 ```
 
-The command writes `document.pdf` locally. It uses the same semantic content and editorial theme as HTML output.
+The command writes `document.pdf` locally. It uses the same semantic content and editorial theme as HTML output. An image that the renderer cannot place is reported on standard error.
 
 ### Delete units
 
@@ -65,7 +153,7 @@ The command writes `document.pdf` locally. It uses the same semantic content and
 bun run delete -- --document example-book --parts 1 3 8
 ```
 
-The command removes the numbered units. The numbers start at 1 and follow the index order. The remaining units keep their order and get new numbers that close the gaps. Internal links update to the new unit numbers. Images that no unit references are removed. At least one unit must remain.
+The command removes the numbered units. The numbers start at 1 and follow the index order. The remaining units keep their order and get new numbers that close the gaps. Internal links update to the new unit numbers. A link to a removed unit becomes `(#)`. Images that no unit references are removed. At least one unit must remain.
 
 ### Translate one document
 
@@ -82,15 +170,23 @@ bun run translate -- --document example-book --to fr --model deepseek-v4.1-flash
 # Translate a subset and copy the remaining units from the source
 bun run translate -- --document example-book --to fr --only 3 4 5
 
+# Write the Markdown report to another path
+bun run translate -- --document example-book --to fr --report reports/review.md
+
+# Print a machine-readable summary
+bun run translate -- --document example-book --to fr --json
+
 # Replace an existing translated project
 bun run translate -- --document example-book --to fr --force
 ```
 
-`translate` reads one extracted document, calls a model once per Markdown unit, validates every answer against the source structure, and writes a standalone sibling project `documents/<document-name>-<lang>/`. The sibling project keeps the unit ids, unit paths, images, and templates of the source, so `serve` and `build` accept it without any change. A structure violation is never retried; the unit is marked failed and the run returns a non-zero exit code unless `--best-effort` copies the failed units from the source.
+`translate` reads one extracted document and writes a standalone sibling project `documents/<document-name>-<lang>/`. The sibling project keeps the unit ids, unit paths, images, and templates of the source, so `serve` and `build` accept it without any change. A structure violation is never retried. The unit is marked failed, and the run returns a non-zero exit code, unless `--best-effort` copies the failed units from the source.
 
-Model access uses the OpenCode Zen gateway. Export `OPENCODE_API_KEY` before a run; `OPENCODE_ZEN_BASE_URL` overrides the default `https://opencode.ai/zen/v1`. Models are declared in `src/translate/providers/registry.ts` with their endpoint family and price.
+Model access uses the OpenCode Zen gateway. Export `OPENCODE_API_KEY` before a run. `OPENCODE_ZEN_BASE_URL` overrides the default `https://opencode.ai/zen/v1`. The models are declared in `src/translate/providers/registry.ts` with their endpoint family and price.
 
-Per-unit results are cached in `reports/translation.cache.json`, so a rerun skips unchanged units. Reports land in `reports/translation.md` and `reports/translation.json`.
+Per-unit results are cached in `reports/translation.cache.json`, so a rerun skips unchanged units. The cache is written even when some units fail, so a retry does not pay twice for the units that succeeded. The reports land in `reports/translation.md` and `reports/translation.json`, or at the path given by `--report`.
+
+`--max-cost` is a safety ceiling, not a hard limit. The pool starts several calls before any of them reports a cost. A run can therefore exceed the ceiling by the cost of the calls already in flight. The summary reports the real spend.
 
 ### Compare translation models
 
@@ -104,7 +200,20 @@ bun scripts/benchmark-translate.ts --document example-book --to fr --only 11 --d
 bun scripts/benchmark-translate.ts --document example-book --to fr --only 11
 ```
 
-The tool runs one candidate at a time at concurrency 1, so the duration is comparable. It stores the translated Markdown of every model under `roadmap/T0002/benchmark-output/<model>/`, copies the source images next to them, and writes `roadmap/T0002/benchmark.md` (details and summary tables) with the measured time and cost. The tool never fills the quality columns: a human reviewer opens each stored translation, writes a `Quality /10`, and fills the average and the verdict. `roadmap/T0002/benchmark.json` holds the raw rows.
+The tool runs one candidate at a time at concurrency 1, so the duration is comparable. It stores the translated Markdown of every model under `roadmap/T0002/benchmark-output/<model>/`. It copies the source images next to them. It writes `roadmap/T0002/benchmark.md` with the details, the summary tables, the measured time, and the cost. The tool never fills the quality columns. A human reviewer opens each stored translation, writes a `Quality /10`, and fills the average and the verdict. `roadmap/T0002/benchmark.json` holds the raw rows.
+
+## Requirements
+
+- Bun 1.4 or later.
+- A digital PDF or an unencrypted EPUB 2 or EPUB 3 file.
+
+Scanned PDFs, OCR, DRM-protected files, and EPUB output are not included. Translation needs an `OPENCODE_API_KEY` and sends the document text to a third-party model.
+
+## Install
+
+```bash
+bun install
+```
 
 ## Project layout
 
@@ -118,11 +227,22 @@ documents/
     templates/                   Document HTML and print theme
     reports/                     Human and machine extraction reports
     generated/                   Disposable HTML and PDF output
-src/                             Bun and TypeScript source
+src/
+  commands/                      The services, one file per service
+  services/document.ts           Document loading, shared by every caller
+  extract/                       EPUB and PDF source adapters
+  translate/                     Translation, validation, caching, reporting
+  model/                         Manifest and content types, no file access
+  shared/                        Errors, paths, templates, escaping, images
+  render/                        HTML and PDF rendering
+  server/                        The local preview server
+  cli.ts                         The command-line adapter
 scripts/                         One-off tools, such as the model benchmark
-tests/                           Unit, integration, and fixture tests
-roadmap/T0001/                   Approved specification and plan
+tests/                           Fixtures, and the unit tests kept from before
+roadmap/                         One directory per ticket, with its spec and plan
 ```
+
+The source is layered. A module imports from the layers below it and never from a layer above it. `src/AGENTS.md` states the rule for agents.
 
 ## Editable content
 
@@ -140,11 +260,15 @@ bun run typecheck
 bunx biome check --write <files>
 ```
 
+A test file sits beside the file it tests and carries the same base name, as `src/commands/translate.test.ts` sits beside `src/commands/translate.ts`. Write unit tests for the services. The command line and the server are not unit tested.
+
 The project uses tabs in source files and two spaces in Markdown. Do not commit source books or generated output.
 
 ## Glossary
 
 - **Document project:** The editable folder under `documents/<document-name>/` for one source document.
 - **Unit:** One ordered Markdown section, such as an EPUB spine document or a detected PDF section.
+- **Service:** One function that performs one task and returns plain data. A service never writes to the terminal and never starts a server.
+- **Adapter:** A user interface over the services. The command line and the preview server are adapters, and a future Web UI is one too.
 - **Extraction report:** A record of extracted counts, source locations, warnings, and resource status.
 - **Generated output:** HTML or PDF files that can be deleted and recreated from Markdown and assets.
