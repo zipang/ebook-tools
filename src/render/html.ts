@@ -1,6 +1,7 @@
 import { renderMarkdownToHtml } from "../markdown/parse.ts";
 import type { DocumentManifest } from "../model/project.ts";
-import { applyTemplate, loadTemplateSet, type TemplateSet } from "./template.ts";
+import { loadTemplateSet, type TemplateSet } from "../shared/templates.ts";
+import { applyTemplate } from "./template.ts";
 
 export type RenderLinkOptions = {
 	indexHref: string;

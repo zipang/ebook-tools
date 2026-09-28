@@ -2,7 +2,7 @@ import { cp, mkdir, readdir } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { type RenderLinkOptions, renderIndexPage, renderUnitPage } from "../render/html.ts";
 import { type PdfSection, renderHtmlToPdf } from "../render/pdf.ts";
-import { loadDocumentContext } from "../server/routes.ts";
+import { loadDocumentContext } from "../services/document.ts";
 import { AppError } from "../shared/errors.ts";
 import { resolveDocumentRoot, resolveRealPathInside } from "../shared/paths.ts";
 

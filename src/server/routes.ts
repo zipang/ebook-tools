@@ -1,16 +1,8 @@
 import { extname, join, resolve } from "node:path";
-import type { DocumentManifest } from "../model/project.ts";
-import { validateManifest } from "../model/project.ts";
 import { renderIndexPage, renderUnitPage } from "../render/html.ts";
-import { loadTemplateSet, type TemplateSet } from "../render/template.ts";
+import type { DocumentContext } from "../services/document.ts";
 import { AppError } from "../shared/errors.ts";
-import { assertNotSymlink, isPathInside, resolveRealPathInside } from "../shared/paths.ts";
-
-export type DocumentContext = {
-	documentDir: string;
-	manifest: DocumentManifest;
-	templates: TemplateSet;
-};
+import { isPathInside, resolveRealPathInside } from "../shared/paths.ts";
 
 const ALLOWED_ASSET_TYPES: Record<string, string> = {
 	".gif": "image/gif",
@@ -25,19 +17,6 @@ const HTML_HEADERS = {
 	"content-security-policy":
 		"default-src 'none'; img-src 'self' data:; style-src 'self'; base-uri 'none'; form-action 'none'",
 	"x-content-type-options": "nosniff"
-};
-
-/** Read and validate the manifest of a document project. */
-const readManifest = async (documentDir: string): Promise<DocumentManifest> => {
-	try {
-		const text = await Bun.file(join(documentDir, "manifest.json")).text();
-		return validateManifest(JSON.parse(text));
-	} catch (error) {
-		if (error instanceof AppError) {
-			throw error;
-		}
-		throw new AppError("malformed-source", `Unable to load document manifest: ${String(error)}`);
-	}
 };
 
 /** Resolve an existing file that stays inside a root directory. */
@@ -65,17 +44,6 @@ const createPlainText = (message: string, status: number): Response => {
 		status,
 		headers: { "content-type": "text/plain; charset=utf-8", "x-content-type-options": "nosniff" }
 	});
-};
-
-/** Load a document project for the preview server. */
-export const loadDocumentContext = async (documentDir: string): Promise<DocumentContext> => {
-	await assertNotSymlink(documentDir);
-	const manifest = await readManifest(documentDir);
-	return {
-		documentDir,
-		manifest,
-		templates: await loadTemplateSet(documentDir, manifest.templates)
-	};
 };
 
 /** Create the request handler for one selected document. */

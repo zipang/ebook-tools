@@ -7,6 +7,7 @@ import {
 	serializeManifest,
 	validateManifest
 } from "../model/project.ts";
+import { readDocumentManifest } from "../services/document.ts";
 import { AppError, ValidationError } from "../shared/errors.ts";
 import { assertDocumentName, resolveDocumentRoot } from "../shared/paths.ts";
 import { type CacheEntry, cacheKey, readCache, writeCache } from "./cache.ts";
@@ -131,13 +132,12 @@ export const loadSourceProject = async (
 	documentName: string
 ): Promise<SourceProject> => {
 	const documentDir = resolveDocumentRoot(repositoryRoot, documentName);
-	const manifestFile = Bun.file(join(documentDir, "manifest.json"));
 
-	if (!(await manifestFile.exists())) {
+	if (!(await Bun.file(join(documentDir, "manifest.json")).exists())) {
 		throw new AppError("document-not-found", `Document not found under documents/: ${documentName}`);
 	}
 
-	return { documentDir, manifest: validateManifest(await manifestFile.json()) };
+	return { documentDir, manifest: await readDocumentManifest(documentDir) };
 };
 
 /** Build the translation jobs of a document, keeping manifest order. */

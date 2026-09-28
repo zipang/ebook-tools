@@ -1,12 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import {
-	type DocumentManifest,
-	type ManifestAsset,
-	type ManifestUnit,
-	serializeManifest,
-	validateManifest
-} from "../model/project.ts";
+import { type ManifestAsset, type ManifestUnit, serializeManifest } from "../model/project.ts";
+import { readDocumentManifest } from "../services/document.ts";
 import { AppError } from "../shared/errors.ts";
 import { resolveDocumentRoot, resolveRealPathInside, slugifyDocumentName } from "../shared/paths.ts";
 
@@ -50,19 +45,6 @@ const parsePartIndexes = (parts: number[], unitCount: number): Set<number> => {
 	return indexes;
 };
 
-/** Read and validate the document manifest. */
-const readManifest = async (documentDir: string): Promise<DocumentManifest> => {
-	try {
-		const text = await Bun.file(join(documentDir, "manifest.json")).text();
-		return validateManifest(JSON.parse(text));
-	} catch (error) {
-		if (error instanceof AppError) {
-			throw error;
-		}
-		throw new AppError("malformed-source", `Unable to load document manifest: ${String(error)}`);
-	}
-};
-
 /** Rewrite /read links through the old-to-new unit id map. */
 const remapReadLinks = (markdown: string, idMap: Map<string, string>): string => {
 	return markdown.replace(/\(\/read\/(unit-\d+)(#[^)\s]*)?\)/g, (_match, id: string, fragment = "") => {
@@ -87,7 +69,7 @@ const collectReferencedAssets = (markdowns: string[]): Set<string> => {
 /** Delete units from a document, renumber the rest, and prune unused images. */
 export const deleteDocumentParts = async (options: DeleteDocumentOptions): Promise<DeleteDocumentResult> => {
 	const documentDir = resolveDocumentRoot(options.repositoryRoot, options.documentName);
-	const manifest = await readManifest(documentDir);
+	const manifest = await readDocumentManifest(documentDir);
 	const indexes = parsePartIndexes(options.parts, manifest.units.length);
 
 	const removedTitles: string[] = [];
