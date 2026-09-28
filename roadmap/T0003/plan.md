@@ -357,4 +357,30 @@ Run these before the ticket closes.
 
 ## Implementation Status
 
-Not started. Phase 1 begins at Task 1.
+All 22 tasks are implemented across four pull requests. 178 tests pass, the type check and Biome are clean, and every validation check in this plan passes. The work is committed but not pushed.
+
+| Pull request | Commit | Findings closed |
+|---|---|---|
+| 1 | `9eeed76` | 1, 2 |
+| 2 | `5fd500b`, `89a4bac` | 3, 4, 5, 6, 7, 9, 14, 19, plus `src/AGENTS.md` |
+| 3 | `d6cf5a4` | 8, 10, 11, 15, 22, 23, 24, 25 |
+| 4 | `2e3d6c5` | 12, 13, 16, 17, 18, 20, 21, 26 |
+
+Test count moved from 162 to 119 when the integration tests were deleted, then up to 178 as the colocated tests landed. The 17 files under `tests/unit/` were never touched and all 119 of their tests still pass.
+
+### Decisions taken during implementation
+
+- **Template loading moved to `src/shared/templates.ts`.** The first version of the service layer imported `loadTemplateSet` from `src/render/template.ts`, which broke success criterion 3. Reading a theme file is I/O, not rendering, so the loader moved to the shared layer and `src/render/template.ts` keeps only `applyTemplate`.
+- **`Bun.file(path).exists()` is not a directory check.** It returns **false for a directory**. The first atomic-delete draft added a `directoryExists` helper built on `node:fs`. The Bun reference states this explicitly, and also recommends acting and handling the error over a pre-check. The helper was removed: the delete path tolerates `ENOENT` from `rename`, and `translate.ts` uses `Bun.file(path).stat().isDirectory()`. This is recorded in `src/AGENTS.md` because the trap is easy to fall into again.
+- **The `RenderContext` replaces a parameter list.** Removing `console.warn` from the PDF renderer meant threading the skipped images through three recursive functions. A context object carrying `documentDir`, `unitPath`, and `skippedImages` kept the signatures at three or four parameters instead of six.
+- **`createManifest` generates the unit id from the position.** It previously took the id from the extracted unit and validated it. Since the id is a function of the position, generating it removes a validation that could not fail, and it matches the invariant the manifest already requires.
+- **Findings 14 and 19 closed as a side effect of finding 6.** Making the PDF renderer return its skipped images meant typing the manifest parameter properly and dropping the dead `templates?.styles` chain, so those tasks were already done when their turn came.
+
+### The proof
+
+The definition of done is a throwaway Web UI adapter. It was written last, compiled, and run against a real document project. It drove `loadDocumentContext`, `runBuild` for both formats, `runServe`, and `runDeleteParts`, and every call returned plain data with nothing written to the terminal. It compiled with no edit to `src/model/`, `src/shared/`, `src/extract/`, or `src/translate/`. The adapter was then deleted.
+
+### Open items
+
+- **The end-to-end safety net is still missing.** The 43 deleted integration tests were the only coverage of the five commands working together. The colocated unit tests prove each service in isolation, and the throwaway adapter exercised the services together once, but nothing runs that path on every change. This is Open Question 3 in the specification, and it needs its own ticket.
+- **Asset identifiers were deliberately left alone.** Three `asset-` id and path sites still build their own format. Finding 10 covers the unit-id and unit-path convention only, so centralizing the asset convention is out of scope here.
