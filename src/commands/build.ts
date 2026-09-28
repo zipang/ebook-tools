@@ -1,10 +1,12 @@
 import { cp, mkdir, readdir } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
+import type { DocumentManifest } from "../model/project.ts";
 import { type RenderLinkOptions, renderIndexPage, renderUnitPage } from "../render/html.ts";
-import { type PdfSection, renderHtmlToPdf } from "../render/pdf.ts";
+import { type PdfSection, renderHtmlToPdf, type SkippedImage } from "../render/pdf.ts";
 import { loadDocumentContext } from "../services/document.ts";
 import { AppError } from "../shared/errors.ts";
 import { resolveDocumentRoot, resolveRealPathInside } from "../shared/paths.ts";
+import type { TemplateSet } from "../shared/templates.ts";
 
 export type BuildDocumentOptions = {
 	repositoryRoot: string;
@@ -17,6 +19,14 @@ export type BuildDocumentResult = {
 	outputDir: string;
 	format: "html" | "pdf";
 	files: string[];
+	/** Images the renderer could not place. Empty for an HTML build. */
+	skippedImages: SkippedImage[];
+};
+
+/** What one format writer produced. */
+type BuildFormatResult = {
+	files: string[];
+	skippedImages: SkippedImage[];
 };
 
 /** Resolve the output directory relative to the document directory. */
@@ -50,9 +60,9 @@ const copyAssets = async (documentDir: string, outputDir: string): Promise<void>
 const buildHtml = async (
 	documentDir: string,
 	outputDir: string,
-	manifest: Parameters<typeof renderIndexPage>[0],
-	templates: Parameters<typeof renderIndexPage>[1]
-): Promise<string[]> => {
+	manifest: DocumentManifest,
+	templates: TemplateSet
+): Promise<BuildFormatResult> => {
 	const indexLinks: RenderLinkOptions = {
 		indexHref: "index.html",
 		stylesHref: "print.css",
@@ -79,9 +89,9 @@ const buildHtml = async (
 
 	await copyAssets(documentDir, outputDir);
 	const stylesPath = join(outputDir, "print.css");
-	await Bun.write(stylesPath, templates?.styles ?? "");
+	await Bun.write(stylesPath, templates.styles);
 	files.push(stylesPath);
-	return files;
+	return { files, skippedImages: [] };
 };
 
 /** Replace HTML special characters with character references. */
@@ -98,9 +108,9 @@ const escapeHtml = (value: string): string => {
 const buildPdf = async (
 	documentDir: string,
 	outputDir: string,
-	manifest: Parameters<typeof renderIndexPage>[0],
-	templates: Parameters<typeof renderIndexPage>[1]
-): Promise<string[]> => {
+	manifest: DocumentManifest,
+	templates: TemplateSet
+): Promise<BuildFormatResult> => {
 	const links: RenderLinkOptions = {
 		indexHref: "../index.html",
 		stylesHref: "../print.css",
@@ -119,14 +129,14 @@ const buildPdf = async (
 		});
 	}
 	const outputPath = join(outputDir, "document.pdf");
-	await renderHtmlToPdf({
+	const result = await renderHtmlToPdf({
 		documentDir,
 		outputPath,
 		title: manifest.title,
 		language: manifest.language,
 		sections
 	});
-	return [outputPath];
+	return { files: [outputPath], skippedImages: result.skippedImages };
 };
 
 /** Build static HTML or a local PDF from one extracted document. */
@@ -135,11 +145,11 @@ export const buildDocument = async (options: BuildDocumentOptions): Promise<Buil
 	const context = await loadDocumentContext(documentDir);
 	const outputDir = resolveOutputDirectory(documentDir, options.out);
 	await mkdir(outputDir, { recursive: true });
-	const files =
+	const built =
 		options.format === "html"
 			? await buildHtml(documentDir, outputDir, context.manifest, context.templates)
 			: await buildPdf(documentDir, outputDir, context.manifest, context.templates);
-	return { outputDir, format: options.format, files };
+	return { outputDir, format: options.format, ...built };
 };
 
 /** Validate and run a build command. */

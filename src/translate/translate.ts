@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, stat } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { generateText } from "ai";
 import {
@@ -191,10 +191,15 @@ export const runPool = async <T, R>(
 	return results;
 };
 
-/** Return true when a directory exists. */
+/**
+ * Return true when a directory exists.
+ *
+ * `Bun.file(path).exists()` is not a directory check. It returns false for a
+ * directory, so the stat call is what tells the two apart.
+ */
 const directoryExists = async (path: string): Promise<boolean> => {
 	try {
-		return (await stat(path)).isDirectory();
+		return (await Bun.file(path).stat()).isDirectory();
 	} catch {
 		return false;
 	}

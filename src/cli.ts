@@ -1,22 +1,11 @@
 import { Command } from "commander";
 import { runBuild } from "./commands/build.ts";
 import { runDelete } from "./commands/delete.ts";
-import { runExtract } from "./commands/extract.ts";
-import { runServe } from "./commands/serve.ts";
+import { type ExtractOptions, runExtract } from "./commands/extract.ts";
+import { runServe, type ServeOptions } from "./commands/serve.ts";
 import { runTranslate, type TranslateCommandOptions } from "./commands/translate.ts";
 
-export type ExtractOptions = {
-	input?: string;
-	document?: string;
-	all?: boolean;
-	force?: boolean;
-};
-
-export type ServeOptions = {
-	document: string;
-	host?: string;
-	port?: number;
-};
+export type { ExtractOptions, ServeOptions };
 
 export type BuildOptions = {
 	document: string;
@@ -41,7 +30,7 @@ export type CliActions = {
 export const createProgram = (
 	actions: CliActions = {
 		extract: async (options) => {
-			const result = await runExtract(options);
+			const result = await runExtract(options, process.cwd());
 			for (const document of result.documents) {
 				console.log(`Extracted ${document.manifest.title} into ${document.documentDir}`);
 			}
@@ -50,7 +39,8 @@ export const createProgram = (
 			}
 		},
 		serve: async (options) => {
-			await runServe(options);
+			const result = await runServe(options, process.cwd());
+			console.log(`Serving ${options.document} at ${result.url}`);
 		},
 		build: async (options) => {
 			const result = await runBuild({
@@ -60,6 +50,10 @@ export const createProgram = (
 				out: options.out
 			});
 			console.log(`Built ${options.document} into ${result.outputDir}`);
+
+			for (const skipped of result.skippedImages) {
+				console.warn(`Skipped image ${skipped.source} in ${skipped.unitPath}: ${skipped.reason}`);
+			}
 		},
 		delete: async (options) => {
 			const result = await runDelete({

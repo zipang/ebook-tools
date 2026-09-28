@@ -18,6 +18,26 @@ export type RenderPdfOptions = {
 	sections: PdfSection[];
 };
 
+/** One image the renderer could not place, reported to the caller as data. */
+export type SkippedImage = {
+	unitPath: string;
+	source: string;
+	reason: string;
+};
+
+/** The result of rendering a document to PDF. */
+export type RenderPdfResult = {
+	outputPath: string;
+	skippedImages: SkippedImage[];
+};
+
+/** Paths and bookkeeping shared by every node renderer in one PDF run. */
+type RenderContext = {
+	documentDir: string;
+	unitPath: string;
+	skippedImages: SkippedImage[];
+};
+
 /** Collect the normalized text of a node list. */
 const getText = (nodes: ChildNode[]): string => {
 	return nodes
@@ -50,19 +70,18 @@ const getImagePath = (documentDir: string, unitPath: string, source: string): st
 	}
 };
 
-/** Add one local image to the PDF page. */
+/** Add one local image to the PDF page, recording it as skipped on failure. */
 const addImage = async (
 	document: PDFKit.PDFDocument,
-	documentDir: string,
-	unitPath: string,
+	context: RenderContext,
 	source: string
 ): Promise<void> => {
-	const path = getImagePath(documentDir, unitPath, source);
+	const path = getImagePath(context.documentDir, context.unitPath, source);
 	if (path === undefined || extname(path).toLowerCase() === ".svg") {
 		return;
 	}
 	try {
-		const safePath = await resolveRealPathInside(resolve(documentDir), path);
+		const safePath = await resolveRealPathInside(resolve(context.documentDir), path);
 		const file = Bun.file(safePath);
 		if (!(await file.exists())) {
 			return;
@@ -81,7 +100,7 @@ const addImage = async (
 		document.image(bytes, { fit: [500, 320], align: "center" });
 		document.moveDown(0.5);
 	} catch (error) {
-		console.warn(`Skipped image ${source}: ${String(error)}`);
+		context.skippedImages.push({ unitPath: context.unitPath, source, reason: String(error) });
 	}
 };
 
@@ -95,8 +114,7 @@ type InlineTextOptions = {
 const renderInlineNodes = async (
 	document: PDFKit.PDFDocument,
 	nodes: ChildNode[],
-	documentDir: string,
-	unitPath: string,
+	context: RenderContext,
 	options: InlineTextOptions = {}
 ): Promise<void> => {
 	const font = options.font ?? "Helvetica";
@@ -124,7 +142,7 @@ const renderInlineNodes = async (
 			await flush();
 			const source = node.attribs.src;
 			if (source !== undefined) {
-				await addImage(document, documentDir, unitPath, source);
+				await addImage(document, context, source);
 			}
 			continue;
 		}
@@ -132,7 +150,7 @@ const renderInlineNodes = async (
 			buffer += "\n";
 			continue;
 		}
-		await renderInlineNodes(document, node.children, documentDir, unitPath, options);
+		await renderInlineNodes(document, node.children, context, options);
 	}
 	await flush();
 };
@@ -168,8 +186,7 @@ const getTableRowText = (row: Element): string => {
 const renderNodes = async (
 	document: PDFKit.PDFDocument,
 	nodes: ChildNode[],
-	documentDir: string,
-	unitPath: string
+	context: RenderContext
 ): Promise<void> => {
 	for (const node of nodes) {
 		if (isText(node)) {
@@ -189,7 +206,7 @@ const renderNodes = async (
 		}
 		if (/^h[1-6]$/.test(name)) {
 			const level = Number(name.slice(1));
-			await renderInlineNodes(document, node.children, documentDir, unitPath, {
+			await renderInlineNodes(document, node.children, context, {
 				font: "Helvetica-Bold",
 				size: level === 1 ? 24 : level === 2 ? 18 : 14
 			});
@@ -197,14 +214,14 @@ const renderNodes = async (
 			continue;
 		}
 		if (name === "p" || name === "figcaption") {
-			await renderInlineNodes(document, node.children, documentDir, unitPath);
+			await renderInlineNodes(document, node.children, context);
 			document.moveDown(0.6);
 			continue;
 		}
 		if (name === "img") {
 			const source = node.attribs.src;
 			if (source !== undefined) {
-				await addImage(document, documentDir, unitPath, source);
+				await addImage(document, context, source);
 			}
 			continue;
 		}
@@ -218,7 +235,7 @@ const renderNodes = async (
 						.font("Helvetica")
 						.fontSize(11)
 						.text(`${marker} `, { continued: true, indent: 18 });
-					await renderInlineNodes(document, child.children, documentDir, unitPath, { indent: 18 });
+					await renderInlineNodes(document, child.children, context, { indent: 18 });
 					itemIndex += 1;
 				}
 			}
@@ -226,7 +243,7 @@ const renderNodes = async (
 			continue;
 		}
 		if (name === "blockquote") {
-			await renderInlineNodes(document, node.children, documentDir, unitPath, {
+			await renderInlineNodes(document, node.children, context, {
 				font: "Helvetica-Oblique",
 				indent: 24
 			});
@@ -246,12 +263,17 @@ const renderNodes = async (
 			document.moveDown(0.6);
 			continue;
 		}
-		await renderNodes(document, node.children, documentDir, unitPath);
+		await renderNodes(document, node.children, context);
 	}
 };
 
-/** Render semantic HTML sections into a local PDF with PDFKit. */
-export const renderHtmlToPdf = async (options: RenderPdfOptions): Promise<void> => {
+/**
+ * Render semantic HTML sections into a local PDF with PDFKit.
+ *
+ * The function returns the output path and every image it could not place.
+ * It writes nothing to the terminal, so the caller decides what to report.
+ */
+export const renderHtmlToPdf = async (options: RenderPdfOptions): Promise<RenderPdfResult> => {
 	const document = new PDFDocument({
 		size: "A4",
 		margins: { top: 64, right: 64, bottom: 64, left: 64 },
@@ -266,6 +288,7 @@ export const renderHtmlToPdf = async (options: RenderPdfOptions): Promise<void> 
 		document.on("end", resolvePromise);
 		document.on("error", rejectPromise);
 	});
+	const skippedImages: SkippedImage[] = [];
 
 	try {
 		for (const [index, section] of options.sections.entries()) {
@@ -276,16 +299,17 @@ export const renderHtmlToPdf = async (options: RenderPdfOptions): Promise<void> 
 			const body = parsed.children.find(
 				(node): node is Element => isTag(node) && node.name.toLowerCase() === "body"
 			);
-			await renderNodes(
-				document,
-				body?.children ?? parsed.children,
-				options.documentDir,
-				section.unitPath
-			);
+			await renderNodes(document, body?.children ?? parsed.children, {
+				documentDir: options.documentDir,
+				unitPath: section.unitPath,
+				skippedImages
+			});
 		}
 		document.end();
 		await completed;
 		await Bun.write(options.outputPath, Buffer.concat(chunks));
+
+		return { outputPath: options.outputPath, skippedImages };
 	} catch (error) {
 		if (error instanceof AppError) {
 			throw error;

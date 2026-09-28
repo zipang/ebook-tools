@@ -25,26 +25,43 @@ const readDocumentFile = async (documentDir: string, relativePath: string): Prom
 	return Bun.file(resolved).text();
 };
 
-let defaultTemplatePromise: Promise<TemplateSet> | undefined;
+/** Read the built-in editorial theme that ships with the tool. */
+export const loadBuiltinTemplateSet = async (): Promise<TemplateSet> => {
+	const [base, styles] = await Promise.all([
+		Bun.file(new URL("../templates/default/base.html", import.meta.url)).text(),
+		Bun.file(new URL("../templates/default/print.css", import.meta.url)).text()
+	]);
 
-/** Load document templates, falling back to the built-in editorial theme. */
+	return { base, styles };
+};
+
+/**
+ * Load the templates of one document project.
+ *
+ * The caller owns the cache lifetime. A long-running process, such as a
+ * preview server or a Web UI, holds the result and reuses it, so a
+ * module-level cache never makes the result depend on call order.
+ */
+export const loadDocumentTemplateSet = async (
+	documentDir: string,
+	templatePaths: TemplatePaths = DEFAULT_TEMPLATE_PATHS
+): Promise<TemplateSet> => {
+	const [base, styles] = await Promise.all([
+		readDocumentFile(documentDir, templatePaths.base),
+		readDocumentFile(documentDir, templatePaths.styles)
+	]);
+
+	return { base, styles };
+};
+
+/** Load a document theme, or the built-in theme when no project is given. */
 export const loadTemplateSet = async (
 	documentDir?: string,
 	templatePaths: TemplatePaths = DEFAULT_TEMPLATE_PATHS
 ): Promise<TemplateSet> => {
-	if (documentDir !== undefined) {
-		const [base, styles] = await Promise.all([
-			readDocumentFile(documentDir, templatePaths.base),
-			readDocumentFile(documentDir, templatePaths.styles)
-		]);
-
-		return { base, styles };
+	if (documentDir === undefined) {
+		return loadBuiltinTemplateSet();
 	}
 
-	defaultTemplatePromise ??= Promise.all([
-		Bun.file(new URL("../templates/default/base.html", import.meta.url)).text(),
-		Bun.file(new URL("../templates/default/print.css", import.meta.url)).text()
-	]).then(([base, styles]) => ({ base, styles }));
-
-	return defaultTemplatePromise;
+	return loadDocumentTemplateSet(documentDir, templatePaths);
 };
