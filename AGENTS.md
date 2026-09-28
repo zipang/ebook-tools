@@ -110,6 +110,6 @@ Before you use the `git-commit` skill, reformat the edited sources with Biome. T
 
 ## JS and TS lint rules
 
-- Declare a proper JSDoc block for every function.
+- IMPORTANT: Declare a proper JSDoc block for every function.
 - Leave a blank line before control statements like : `if`, loops (`while`, `for`..) and `return` to make the code more readable
 - Prefer arrow function definitions: `const fn = () => {}`. Do not use the `function` keyword.

@@ -2,7 +2,7 @@ node_modules/
 dist/
 coverage/
 sources/
-documents/*/generated/
+documents/*/
 roadmap/T0002/benchmark-output/
 .tmp/
 temp/
