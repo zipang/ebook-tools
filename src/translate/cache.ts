@@ -1,3 +1,5 @@
+import { mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { TokenUsage } from "./types.ts";
 
 /** Version of the cache file format. */
@@ -65,5 +67,6 @@ export const writeCache = async (
 ): Promise<void> => {
 	const payload: TranslationCache = { version: CACHE_VERSION, promptVersion, entries };
 
+	await mkdir(dirname(cachePath), { recursive: true });
 	await Bun.write(cachePath, `${JSON.stringify(payload, null, 2)}\n`);
 };

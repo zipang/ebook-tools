@@ -530,6 +530,12 @@ export const translateDocument = async (
 		}
 	}
 
+	// Write the cache before the failure return. A unit that translated
+	// successfully was billed, so a retry must not pay for it twice.
+	if (options.cache) {
+		await writeCache(cachePath, nextCache, TRANSLATION_PROMPT_VERSION);
+	}
+
 	if (failed.length > 0 && !options.bestEffort) {
 		const summary = summarize(
 			outputDir,
@@ -554,10 +560,6 @@ export const translateDocument = async (
 		: source.manifest.title;
 
 	await writeProject(source, outputDir, outputName, language, byUnit, documentTitle);
-
-	if (options.cache) {
-		await writeCache(cachePath, nextCache, TRANSLATION_PROMPT_VERSION);
-	}
 
 	const summary = summarize(
 		outputDir,

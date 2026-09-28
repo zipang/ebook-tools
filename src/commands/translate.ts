@@ -127,7 +127,8 @@ export const runTranslate = async (
 			force: options.force,
 			cache: options.cache,
 			bestEffort: options.bestEffort,
-			maxCostUsd
+			maxCostUsd,
+			reportPath: options.report
 		},
 		repositoryRoot,
 		deps
