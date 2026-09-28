@@ -3,8 +3,8 @@ import { type DocumentServer, startDocumentServer } from "../server/server.ts";
 /** Options accepted by the serve command. */
 export type ServeOptions = {
 	document: string;
-	host?: string;
-	port?: number;
+	host?: string | undefined;
+	port?: number | undefined;
 };
 
 /** The result of starting the preview server for one document. */
@@ -26,7 +26,7 @@ export const runServe = async (options: ServeOptions, repositoryRoot: string): P
 		repositoryRoot,
 		documentName: options.document,
 		host,
-		...(options.port === undefined ? {} : { port: options.port })
+		port: options.port
 	});
 
 	return { server, url: `http://${host}:${server.port}` };

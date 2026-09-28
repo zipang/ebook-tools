@@ -282,6 +282,14 @@ export const validateManifest = (value: unknown): DocumentManifest => {
 		}
 		return manifestAsset;
 	});
+	const assetIds = new Set(assets.map((asset) => asset.id));
+	if (assetIds.size !== assets.length) {
+		throw new ValidationError("assets must have unique ids");
+	}
+	const assetPaths = new Set(assets.map((asset) => asset.path));
+	if (assetPaths.size !== assets.length) {
+		throw new ValidationError("assets must have unique paths");
+	}
 
 	if (!isRecord(value.templates)) {
 		throw new ValidationError("templates must be an object");

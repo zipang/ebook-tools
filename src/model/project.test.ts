@@ -1,5 +1,18 @@
 import { expect, test } from "bun:test";
-import { nextUnitId, nextUnitPath } from "./project.ts";
+import { nextUnitId, nextUnitPath, validateManifest } from "./project.ts";
+
+/** Build a minimal valid manifest, so a test can vary one field. */
+const baseManifest = (): Record<string, unknown> => ({
+	schemaVersion: 1,
+	id: "sample-book",
+	title: "Sample Book",
+	language: "en",
+	direction: "ltr",
+	source: { format: "epub", path: "sources/sample-book.epub", size: 1024 },
+	units: [{ id: "unit-001", title: "One", path: "chapters/001-one.md", source: { sourcePath: "a.epub" } }],
+	assets: [],
+	templates: { base: "templates/base.html", styles: "templates/print.css" }
+});
 
 /*
  * The unit identifier and the unit path are part of the on-disk contract.
@@ -37,4 +50,44 @@ test("a unit path slugs the title the same way every other slug is built", () =>
 
 test("two units in the same position cannot exist", () => {
 	expect(nextUnitPath(0, "A")).not.toBe(nextUnitPath(0, "B"));
+});
+
+test("accepts a manifest whose assets have unique ids", () => {
+	const manifest = baseManifest();
+	manifest.assets = [
+		{ id: "asset-001", path: "assets/images/a.png", mimeType: "image/png" },
+		{ id: "asset-002", path: "assets/images/b.png", mimeType: "image/png" }
+	];
+
+	expect(() => validateManifest(manifest)).not.toThrow();
+});
+
+test("rejects a manifest whose two assets share an id", () => {
+	const manifest = baseManifest();
+	manifest.assets = [
+		{ id: "asset-001", path: "assets/images/a.png", mimeType: "image/png" },
+		{ id: "asset-001", path: "assets/images/b.png", mimeType: "image/png" }
+	];
+
+	expect(() => validateManifest(manifest)).toThrow("assets must have unique ids");
+});
+
+test("rejects a manifest whose two assets share a path", () => {
+	const manifest = baseManifest();
+	manifest.assets = [
+		{ id: "asset-001", path: "assets/images/a.png", mimeType: "image/png" },
+		{ id: "asset-002", path: "assets/images/a.png", mimeType: "image/png" }
+	];
+
+	expect(() => validateManifest(manifest)).toThrow("assets must have unique paths");
+});
+
+test("rejects a manifest whose two units share an id", () => {
+	const manifest = baseManifest();
+	manifest.units = [
+		{ id: "unit-001", title: "One", path: "chapters/001-one.md", source: { sourcePath: "a.epub" } },
+		{ id: "unit-001", title: "Two", path: "chapters/002-two.md", source: { sourcePath: "a.epub" } }
+	];
+
+	expect(() => validateManifest(manifest)).toThrow("units must have unique ids");
 });

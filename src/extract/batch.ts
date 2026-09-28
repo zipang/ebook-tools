@@ -22,7 +22,7 @@ export type ExtractSourceOptions = {
 	repositoryRoot: string;
 	sourcePath: string;
 	documentName: string;
-	force?: boolean;
+	force?: boolean | undefined;
 };
 
 /** Return the source format for a supported file path. */
@@ -62,13 +62,12 @@ export const extractSource = async (options: ExtractSourceOptions): Promise<Writ
 	const relativePath = toManifestPath(relative(repositoryRoot, sourcePath));
 	const adapter = format === "epub" ? epubExtractor : pdfExtractor;
 	const document = await adapter.extract({ sourcePath: relativePath, format, bytes });
-	const writeOptions = {
+	return writeExtractedDocument({
 		repositoryRoot,
 		documentName: options.documentName,
 		document,
-		...(options.force === undefined ? {} : { force: options.force })
-	};
-	return writeExtractedDocument(writeOptions);
+		force: options.force
+	});
 };
 
 /** Group discovered sources by their derived document name. */
@@ -137,7 +136,7 @@ export const extractCommand = async (
 		repositoryRoot,
 		sourcePath,
 		documentName,
-		...(options.force === undefined ? {} : { force: options.force })
+		force: options.force
 	});
 	return { documents: [document], failures: [], skippedPaths: [] };
 };

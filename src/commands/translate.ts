@@ -4,6 +4,7 @@ import {
 	DEFAULT_CONCURRENCY,
 	defaultOutDocument,
 	estimateDryRun,
+	loadSourceProject,
 	normalizeLanguageTag,
 	translateDocument
 } from "../translate/translate.ts";
@@ -48,18 +49,16 @@ export type TranslateCommandResult = {
 };
 
 /** Parse a non-negative number option, such as a USD cost. */
-const parseNumber = (value: number | string | undefined, name: string): number | undefined => {
+const parseNumber = (value: number | undefined, name: string): number | undefined => {
 	if (value === undefined) {
 		return undefined;
 	}
 
-	const parsed = typeof value === "number" ? value : Number(value);
-
-	if (!Number.isFinite(parsed) || parsed < 0) {
+	if (!Number.isFinite(value) || value < 0) {
 		throw new ValidationError(`${name} must be a non-negative number`);
 	}
 
-	return parsed;
+	return value;
 };
 
 /** Validate the selected unit numbers and return them without duplicates. */
@@ -109,8 +108,8 @@ export const runTranslate = async (
 		};
 	}
 
-	const totalUnits = await countUnits(repositoryRoot, options.document);
-	const only = parseSelectedUnits(options.only, totalUnits);
+	const source = await loadSourceProject(repositoryRoot, options.document);
+	const only = parseSelectedUnits(options.only, source.manifest.units.length);
 	const maxCostUsd = parseNumber(options.maxCost, "--max-cost");
 
 	if (maxCostUsd === 0) {
@@ -148,17 +147,4 @@ export const runTranslate = async (
 		wallClockMs: result.wallClockMs,
 		dryRun: false
 	};
-};
-
-/** Count the units of a source document. */
-const countUnits = async (repositoryRoot: string, documentName: string): Promise<number> => {
-	const manifestFile = Bun.file(`${repositoryRoot}/documents/${documentName}/manifest.json`);
-
-	if (!(await manifestFile.exists())) {
-		return Number.POSITIVE_INFINITY;
-	}
-
-	const manifest = (await manifestFile.json()) as { units?: unknown };
-
-	return Array.isArray(manifest.units) ? manifest.units.length : Number.POSITIVE_INFINITY;
 };

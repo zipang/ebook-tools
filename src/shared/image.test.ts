@@ -1,11 +1,16 @@
 import { expect, test } from "bun:test";
 import { detectImageFormat, isDirectlyEmbeddableImage } from "./image.ts";
 
+/** Build a byte array from a list of byte values. */
 const bytesOf = (...values: number[]): Uint8Array => new Uint8Array(values);
 
+/** A PNG file header. */
 const PNG = bytesOf(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+/** A JPEG start-of-image marker. */
 const JPEG = bytesOf(0xff, 0xd8, 0xff, 0xe0);
+/** A GIF header. */
 const GIF = bytesOf(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
+/** A RIFF container whose form type is WEBP. */
 const WEBP = bytesOf(0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50);
 
 test("identifies a PNG", () => {

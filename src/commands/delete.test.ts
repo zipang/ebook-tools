@@ -26,7 +26,9 @@ const buildDocument = (unitCount: number): ExtractedDocument => ({
 	warnings: []
 });
 
+/** The project directory the tests operate on. */
 const documentDir = (): string => join(repositoryRoot, "documents", "sample-book");
+/** The chapters directory of that project, which every delete rewrites. */
 const chaptersDir = (): string => join(documentDir(), "chapters");
 
 beforeEach(async () => {

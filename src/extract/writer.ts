@@ -16,7 +16,7 @@ export type WriteExtractedDocumentOptions = {
 	repositoryRoot: string;
 	documentName: string;
 	document: ExtractedDocument;
-	force?: boolean;
+	force?: boolean | undefined;
 };
 
 export type WriteExtractedDocumentResult = {

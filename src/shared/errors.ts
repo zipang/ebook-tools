@@ -3,8 +3,8 @@ export class AppError extends Error {
 	readonly code: string;
 
 	/** Create an application error with a code and a message. */
-	constructor(code: string, message: string) {
-		super(message);
+	constructor(code: string, message: string, options?: ErrorOptions) {
+		super(message, options);
 		this.name = "AppError";
 		this.code = code;
 	}

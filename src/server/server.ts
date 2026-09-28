@@ -5,8 +5,8 @@ import { createDocumentFetch } from "./routes.ts";
 export type StartDocumentServerOptions = {
 	repositoryRoot: string;
 	documentName: string;
-	host?: string;
-	port?: number;
+	host?: string | undefined;
+	port?: number | undefined;
 };
 
 export type DocumentServer = Bun.Server<unknown>;

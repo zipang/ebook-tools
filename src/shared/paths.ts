@@ -1,5 +1,6 @@
 import { lstat, realpath } from "node:fs/promises";
 import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { AppError } from "./errors.ts";
 
 const SAFE_DOCUMENT_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -43,21 +44,26 @@ export const isPathInside = (rootPath: string, candidatePath: string): boolean =
 	);
 };
 
-/** Reject a path that is a symbolic link. */
+/**
+ * Reject a path that is a symbolic link, or that cannot be inspected.
+ *
+ * The function raises a typed AppError, so a caller branches on the code
+ * and never on the message. A missing path and an unreadable path keep
+ * their own code and their own cause.
+ */
 export const assertNotSymlink = async (path: string): Promise<void> => {
-	try {
-		const stats = await lstat(path);
-		if (stats.isSymbolicLink()) {
-			throw new Error(`Symbolic links are not allowed: ${path}`);
+	const stats = await lstat(path).catch((cause: unknown) => {
+		const code = (cause as NodeJS.ErrnoException).code;
+
+		if (code === "ENOENT") {
+			throw new AppError("document-not-found", `Document directory was not found: ${path}`);
 		}
-	} catch (error) {
-		if (error instanceof Error && error.message.startsWith("Symbolic links")) {
-			throw error;
-		}
-		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-			throw new Error(`Document directory was not found: ${path}`);
-		}
-		throw new Error(`Unable to inspect path: ${path}`);
+
+		throw new AppError("validation-error", `Unable to inspect path: ${path}`, { cause });
+	});
+
+	if (stats.isSymbolicLink()) {
+		throw new AppError("validation-error", `Symbolic links are not allowed: ${path}`);
 	}
 };
 

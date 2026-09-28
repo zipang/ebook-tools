@@ -56,6 +56,13 @@ const DECORATIVE_MAX_DIMENSION = 16;
 /** Smallest number of references before a repeated image counts as decorative. */
 const DECORATIVE_MIN_REFERENCES = 2;
 
+/**
+ * Decode an archive entry, honouring a byte-order mark when one is present.
+ *
+ * An EPUB is a ZIP of text files, and a publisher may store any of them as
+ * UTF-8, UTF-16 big endian, or UTF-16 little endian. The byte-order mark
+ * says which, and TextDecoder defaults to UTF-8 when there is none.
+ */
 const decodeText = (bytes: Uint8Array): string => {
 	if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
 		return new TextDecoder("utf-16be").decode(bytes.subarray(2)).replace(/^\uFEFF/, "");
@@ -66,10 +73,23 @@ const decodeText = (bytes: Uint8Array): string => {
 	return new TextDecoder("utf-8").decode(bytes).replace(/^\uFEFF/, "");
 };
 
+/**
+ * Read one attribute of an element.
+ *
+ * The EPUB parsers look for attributes in both the exact case and the
+ * lower-case form, because the OPF and the container document disagree
+ * about attribute case. This helper holds that rule in one place.
+ */
 const getAttribute = (element: Element, name: string): string | undefined => {
 	return element.attribs[name];
 };
 
+/**
+ * Find the first element that matches a predicate.
+ *
+ * The container document names its root file with a namespaced tag, so the
+ * lookup cannot be by a fixed tag name.
+ */
 const findElement = (
 	root: Element | DomDocument,
 	predicate: (element: Element) => boolean
@@ -77,6 +97,13 @@ const findElement = (
 	return DomUtils.findOne(predicate, root) ?? undefined;
 };
 
+/**
+ * Read one archive entry, or return undefined when it is absent.
+ *
+ * A required entry that is missing means the archive is malformed, and the
+ * function raises. An optional entry that is missing is a normal outcome,
+ * such as a source that declares no encryption at all.
+ */
 const readArchiveEntry = (archive: Archive, path: string, required = true): Uint8Array | undefined => {
 	const entry = archive[path];
 	if (entry === undefined && required) {
@@ -85,6 +112,11 @@ const readArchiveEntry = (archive: Archive, path: string, required = true): Uint
 	return entry;
 };
 
+/**
+ * Read one archive entry that the specification requires.
+ *
+ * The archive cannot be read without it, so a missing entry is malformed.
+ */
 const readRequiredArchiveEntry = (archive: Archive, path: string): Uint8Array => {
 	const entry = readArchiveEntry(archive, path);
 	if (entry === undefined) {
@@ -93,6 +125,13 @@ const readRequiredArchiveEntry = (archive: Archive, path: string): Uint8Array =>
 	return entry;
 };
 
+/**
+ * Return true when the only encrypted resources are fonts.
+ *
+ * A publisher may obfuscate embedded fonts without protecting the text.
+ * Those files are ignored, and the document still extracts, so this
+ * distinguishes that case from a genuinely encrypted book.
+ */
 const isFontOnlyEncryption = (archive: Archive): boolean => {
 	const encryptionBytes = readArchiveEntry(archive, "META-INF/encryption.xml", false);
 	if (encryptionBytes === undefined) {
@@ -112,6 +151,13 @@ const isFontOnlyEncryption = (archive: Archive): boolean => {
 	);
 };
 
+/**
+ * Resolve an href from an EPUB document against the archive root.
+ *
+ * The result is the archive-relative key of an entry. A resource that
+ * climbs out of the archive is rejected rather than read, because an
+ * untrusted book must not be able to name a file outside itself.
+ */
 const resolveArchivePath = (baseDirectory: string, href: string): string => {
 	const cleanHref = href.split("#", 1)[0] ?? "";
 	const decodedHref = decodeURIComponent(cleanHref);
@@ -122,12 +168,25 @@ const resolveArchivePath = (baseDirectory: string, href: string): string => {
 	return resolved;
 };
 
+/**
+ * Return true when a link leaves the document, so it is not rewritten.
+ *
+ * A link that carries a scheme, or that is protocol-relative, points at
+ * another site and must survive extraction unchanged.
+ */
 const isExternalHref = (href: string): boolean => /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href);
 
+/** Collapse every run of whitespace into one space and trim the ends. */
 const normalizeText = (text: string): string => {
 	return text.replace(/\s+/g, " ").trim();
 };
 
+/**
+ * Return the concatenated text of a node list, with markup discarded.
+ *
+ * The package document wraps its title and its language in namespaced
+ * elements, so a tag-name lookup is not enough. The text is what matters.
+ */
 const textContent = (nodes: ChildNode[]): string => {
 	return nodes
 		.map((node) => {
@@ -142,6 +201,11 @@ const textContent = (nodes: ChildNode[]): string => {
 		.join("");
 };
 
+/**
+ * Build the source location of a unit, for the manifest and the report.
+ *
+ * The selector is optional, because a spine item needs only its index.
+ */
 const createSourceLocation = (
 	context: ExtractionContext,
 	spineIndex: number,
@@ -433,6 +497,12 @@ const deriveTitle = (markdown: string): string => {
 	return fallback.length > 0 ? fallback : "Untitled";
 };
 
+/**
+ * Read the manifest items of the package document, with resolved paths.
+ *
+ * An item without an id or an href is unusable, so the reader drops it
+ * rather than inventing a key for it.
+ */
 const parseManifestItems = (packageDocument: DomDocument, opfPath: string): ManifestItem[] => {
 	const opfDirectory = posix.dirname(opfPath);
 	return DomUtils.getElementsByTagName("item", packageDocument)
@@ -452,6 +522,12 @@ const parseManifestItems = (packageDocument: DomDocument, opfPath: string): Mani
 		.filter((item): item is ManifestItem => item !== undefined);
 };
 
+/**
+ * Find the package document of the archive through the container file.
+ *
+ * The container document points at the package document, and its path
+ * varies per book. A container that declares no root file is malformed.
+ */
 const parseContainerPath = (archive: Archive): string => {
 	const containerBytes = readRequiredArchiveEntry(archive, "META-INF/container.xml");
 	const containerDocument = parseDocument(decodeText(containerBytes), { xmlMode: true });
@@ -463,6 +539,12 @@ const parseContainerPath = (archive: Archive): string => {
 	return resolveArchivePath(".", fullPath);
 };
 
+/**
+ * Read the title and the language from the package document.
+ *
+ * Both elements are namespaced and both are optional in a malformed book,
+ * so each falls back to an empty string and the caller decides the default.
+ */
 const parsePackageMetadata = (packageDocument: DomDocument): { title: string; language: string } => {
 	const titleElement = findElement(packageDocument, (element) =>
 		element.name.toLowerCase().endsWith(":title")

@@ -37,6 +37,7 @@ const CHARS_PER_TOKEN = 4;
 const CACHE_FILE = "reports/translation.cache.json";
 const PROJECT_DIRECTORIES = ["chapters", "assets", "templates", "reports", "generated"];
 
+/** Token usage for a unit that was never billed, such as a cache hit or a skip. */
 const emptyUsage = (): TokenUsage => ({ noCacheTokens: 0, cacheReadTokens: 0, outputTokens: 0 });
 
 /** Normalize a BCP-47 language tag and return its lower-case form. */
@@ -103,6 +104,9 @@ export const isRetryableError = (error: unknown): boolean => {
 		return true;
 	}
 
+	// The AI SDK rejects with a plain object that carries an HTTP status, and it
+	// declares no error type of its own. This cast reads that one field at the
+	// boundary, where the value really is untyped.
 	const status = (error as { statusCode?: number } | null)?.statusCode;
 
 	return status === 408 || status === 409 || status === 425 || status === 429 || Number(status) >= 500;
@@ -344,7 +348,15 @@ export const estimateDryRun = async (
 	return { model: entry.id, language, outDocument, units: jobs.length, inputTokens, outputTokens, costUsd };
 };
 
-/** Translate one extracted document into a sibling project. */
+/**
+ * Translate one extracted document into a sibling project.
+ *
+ * `options.maxCostUsd` is a safety ceiling, not a hard limit. The pool
+ * starts up to `concurrency` calls before any of them reports a cost, so
+ * a run can exceed the ceiling by at most the cost of the calls already in
+ * flight. Removing that overshoot would mean billing a call before making
+ * it, which is not possible. The run summary reports the real spend.
+ */
 export const translateDocument = async (
 	options: TranslateOptions,
 	repositoryRoot: string,
@@ -437,9 +449,15 @@ export const translateDocument = async (
 		}
 
 		const durationMs = Date.now() - startedAt;
-		const truncated = answer.finishReason === "length";
 
-		if (truncated) {
+		// A model that answered was billed, whatever happens to the answer.
+		// Charge the budget here so a truncated or rejected unit still counts
+		// against --max-cost.
+		const costUsd = estimateCostUsd(entry, answer.usage);
+
+		spent += costUsd;
+
+		if (answer.finishReason === "length") {
 			return {
 				...failedResult(
 					job,
@@ -448,7 +466,7 @@ export const translateDocument = async (
 				),
 				durationMs,
 				usage: answer.usage,
-				costUsd: estimateCostUsd(entry, answer.usage)
+				costUsd
 			};
 		}
 
@@ -468,13 +486,10 @@ export const translateDocument = async (
 				),
 				durationMs,
 				usage: answer.usage,
-				costUsd: estimateCostUsd(entry, answer.usage),
+				costUsd,
 				warnings: outcome.warnings
 			};
 		}
-
-		const costUsd = estimateCostUsd(entry, answer.usage);
-		spent += costUsd;
 
 		if (options.cache) {
 			nextCache[key] = {

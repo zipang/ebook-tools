@@ -27,6 +27,7 @@ const DEFAULT_LENGTH_BAND = { min: 0.4, max: 2.5 };
 const childrenOf = (node: ChildNode): ChildNode[] =>
 	"children" in node && Array.isArray(node.children) ? node.children : [];
 
+/** Find the first direct child element with a tag name. */
 const findChild = (node: ChildNode, name: string): Element | undefined => {
 	for (const child of childrenOf(node)) {
 		if (isTag(child) && child.name === name) {
@@ -37,6 +38,7 @@ const findChild = (node: ChildNode, name: string): Element | undefined => {
 	return undefined;
 };
 
+/** Return every direct child element with a tag name. */
 const childrenNamed = (node: ChildNode, name: string): ChildNode[] =>
 	childrenOf(node).filter((child) => isTag(child) && child.name === name);
 
@@ -142,6 +144,13 @@ export const extractStructure = (markdown: string): StructureSkeleton => {
 	return { blocks, links, images };
 };
 
+/**
+ * Describe a block for a validation message, or the end of the document.
+ *
+ * The message tells a reviewer which block moved, so it carries the whole
+ * block shape rather than a label. A missing block means one document has
+ * more blocks than the other, and the message says so.
+ */
 const describeBlock = (block: SkeletonBlock | undefined): string =>
 	block ? JSON.stringify(block) : "nothing (end of document)";
 

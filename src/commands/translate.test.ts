@@ -156,4 +156,80 @@ describe("runTranslate", () => {
 		expect(result.failed).toBe(2);
 		expect(result.costUsd).toBeGreaterThan(0);
 	});
+
+	test("charges the budget for a truncated unit, so the ceiling accounts for it", async () => {
+		// A ceiling below the cost of the units that answer lets the first
+		// call through and stops the rest. If a truncated unit were free, the
+		// second unit would still be translated.
+		const result = await runTranslate(
+			{ ...baseOptions, concurrency: 1, maxCost: 0.0000005 },
+			repositoryRoot,
+			{ runModel: truncatingModel }
+		);
+
+		expect(result.failed).toBe(1);
+		expect(result.skipped).toBe(1);
+	});
+
+	test("charges the budget for a unit that fails the structure check", async () => {
+		const result = await runTranslate(
+			{ ...baseOptions, concurrency: 1, maxCost: 0.0000005 },
+			repositoryRoot,
+			{ runModel: structureBreakingModel }
+		);
+
+		expect(result.failed).toBe(1);
+		expect(result.skipped).toBe(1);
+	});
+
+	test("rejects a unit number beyond the last unit", async () => {
+		await expect(
+			runTranslate({ ...baseOptions, only: [999] }, repositoryRoot, { runModel: echoModel })
+		).rejects.toThrow(/--only must contain unit numbers between 1 and 2/);
+	});
+
+	test("rejects a unit number of zero", async () => {
+		await expect(
+			runTranslate({ ...baseOptions, only: [0] }, repositoryRoot, { runModel: echoModel })
+		).rejects.toThrow(/--only must contain unit numbers between 1 and 2/);
+	});
+
+	test("translates only the selected unit", async () => {
+		const result = await runTranslate({ ...baseOptions, only: [2] }, repositoryRoot, {
+			runModel: echoModel
+		});
+
+		expect(result.translated).toBe(1);
+		expect(result.skipped).toBe(1);
+	});
+
+	test("rejects a document that does not exist", async () => {
+		await expect(
+			runTranslate({ ...baseOptions, document: "absent" }, repositoryRoot, { runModel: echoModel })
+		).rejects.toThrow(/Document not found/);
+	});
+
+	test("rejects a cost limit of zero", async () => {
+		await expect(
+			runTranslate({ ...baseOptions, maxCost: 0 }, repositoryRoot, { runModel: echoModel })
+		).rejects.toThrow(/--max-cost/);
+	});
+
+	test("rejects a cost limit that is not a number", async () => {
+		await expect(
+			runTranslate({ ...baseOptions, maxCost: Number.NaN }, repositoryRoot, { runModel: echoModel })
+		).rejects.toThrow(/--max-cost/);
+	});
+
+	test("rejects a concurrency below one", async () => {
+		await expect(
+			runTranslate({ ...baseOptions, concurrency: 0 }, repositoryRoot, { runModel: echoModel })
+		).rejects.toThrow(/--concurrency/);
+	});
+
+	test("rejects a concurrency above the maximum", async () => {
+		await expect(
+			runTranslate({ ...baseOptions, concurrency: 99 }, repositoryRoot, { runModel: echoModel })
+		).rejects.toThrow(/--concurrency/);
+	});
 });
