@@ -5,6 +5,7 @@ import { type RenderLinkOptions, renderIndexPage, renderUnitPage } from "../rend
 import { type PdfSection, renderHtmlToPdf, type SkippedImage } from "../render/pdf.ts";
 import { loadDocumentContext } from "../services/document.ts";
 import { AppError } from "../shared/errors.ts";
+import { escapeHtml } from "../shared/escape.ts";
 import { resolveDocumentRoot, resolveRealPathInside } from "../shared/paths.ts";
 import type { TemplateSet } from "../shared/templates.ts";
 
@@ -92,16 +93,6 @@ const buildHtml = async (
 	await Bun.write(stylesPath, templates.styles);
 	files.push(stylesPath);
 	return { files, skippedImages: [] };
-};
-
-/** Replace HTML special characters with character references. */
-const escapeHtml = (value: string): string => {
-	return value
-		.replaceAll("&", "&amp;")
-		.replaceAll("<", "&lt;")
-		.replaceAll(">", "&gt;")
-		.replaceAll('"', "&quot;")
-		.replaceAll("'", "&#39;");
 };
 
 /** Render the document units into one local PDF file. */

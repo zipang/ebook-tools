@@ -1,3 +1,4 @@
+import { escapeHtml } from "../shared/escape.ts";
 import type { TemplateSet } from "../shared/templates.ts";
 
 /** The values substituted into a base template. */
@@ -8,16 +9,6 @@ export type TemplateValues = {
 	homeHref: string;
 	stylesHref: string;
 	content: string;
-};
-
-/** Replace HTML special characters with character references. */
-const escapeHtml = (value: string): string => {
-	return value
-		.replaceAll("&", "&amp;")
-		.replaceAll("<", "&lt;")
-		.replaceAll(">", "&gt;")
-		.replaceAll('"', "&quot;")
-		.replaceAll("'", "&#39;");
 };
 
 /** Apply template values to a base template with HTML escaping. */

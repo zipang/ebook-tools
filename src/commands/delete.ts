@@ -5,11 +5,13 @@ import {
 	type DocumentManifest,
 	type ManifestAsset,
 	type ManifestUnit,
+	nextUnitId,
+	nextUnitPath,
 	serializeManifest
 } from "../model/project.ts";
 import { readDocumentManifest } from "../services/document.ts";
 import { AppError } from "../shared/errors.ts";
-import { resolveDocumentRoot, resolveRealPathInside, slugifyDocumentName } from "../shared/paths.ts";
+import { resolveDocumentRoot, resolveRealPathInside } from "../shared/paths.ts";
 
 export type DeleteDocumentOptions = {
 	repositoryRoot: string;
@@ -21,16 +23,6 @@ export type DeleteDocumentResult = {
 	documentDir: string;
 	removedTitles: string[];
 	remainingCount: number;
-};
-
-/** Return the unit id for a zero-based position. */
-const unitId = (index: number): string => {
-	return `unit-${String(index + 1).padStart(3, "0")}`;
-};
-
-/** Return the chapter path for a zero-based position. */
-const unitPath = (index: number, title: string): string => {
-	return `chapters/${String(index + 1).padStart(3, "0")}-${slugifyDocumentName(title)}.md`;
 };
 
 /** Validate the requested part numbers and return their zero-based indexes. */
@@ -116,7 +108,10 @@ const writeProjectAtomically = async (
 	try {
 		await mkdir(stagingDir, { recursive: true });
 		for (const [index, unit] of keptUnits.entries()) {
-			await Bun.write(join(stagingDir, basename(unitPath(index, unit.title))), rewritten[index] ?? "");
+			await Bun.write(
+				join(stagingDir, basename(nextUnitPath(index, unit.title))),
+				rewritten[index] ?? ""
+			);
 		}
 
 		movedAside = await moveAside(chaptersDir, backupDir);
@@ -159,7 +154,7 @@ export const deleteDocumentParts = async (options: DeleteDocumentOptions): Promi
 
 	const idMap = new Map<string, string>();
 	keptUnits.forEach((unit, index) => {
-		idMap.set(unit.id, unitId(index));
+		idMap.set(unit.id, nextUnitId(index));
 	});
 
 	const rewritten: string[] = [];
@@ -169,9 +164,9 @@ export const deleteDocumentParts = async (options: DeleteDocumentOptions): Promi
 	}
 
 	const units: ManifestUnit[] = keptUnits.map((unit, index) => ({
-		id: unitId(index),
+		id: nextUnitId(index),
 		title: unit.title,
-		path: unitPath(index, unit.title),
+		path: nextUnitPath(index, unit.title),
 		source: unit.source
 	}));
 

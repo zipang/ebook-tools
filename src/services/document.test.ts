@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeExtractedDocument } from "../extract/writer.ts";
 import type { ExtractedDocument } from "../model/document.ts";
+import { nextUnitId } from "../model/project.ts";
 import { AppError } from "../shared/errors.ts";
 import { loadDocumentContext, readDocumentManifest } from "./document.ts";
 
@@ -15,7 +16,7 @@ const buildDocument = (unitCount: number): ExtractedDocument => ({
 	language: "en",
 	source: { format: "epub", path: "sources/sample-book.epub", size: 1024 },
 	units: Array.from({ length: unitCount }, (_unused, index) => ({
-		id: `unit-${String(index + 1).padStart(3, "0")}`,
+		id: nextUnitId(index),
 		title: `Chapter ${index + 1}`,
 		source: { sourcePath: "sources/sample-book.epub", spineIndex: index },
 		blocks: [],

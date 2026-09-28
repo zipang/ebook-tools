@@ -44,6 +44,28 @@ export type DocumentManifest = {
 const SAFE_UNIT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const RIGHT_TO_LEFT_LANGUAGES = /^(ar|dv|fa|he|ps|ur|yi)(?:-|$)/i;
 
+/**
+ * Return the unit identifier for a zero-based position.
+ *
+ * This is the only producer of the unit identifier format. The format is
+ * part of the on-disk contract: existing document projects keep their
+ * identifiers, and a change here needs a schema version bump.
+ */
+export const nextUnitId = (index: number): string => {
+	return `unit-${String(index + 1).padStart(3, "0")}`;
+};
+
+/**
+ * Return the chapter path for a zero-based position and a unit title.
+ *
+ * This is the only producer of the unit path format. A document project
+ * stores this path in its manifest, so the format is part of the on-disk
+ * contract and a change here needs a schema version bump.
+ */
+export const nextUnitPath = (index: number, title: string): string => {
+	return `chapters/${String(index + 1).padStart(3, "0")}-${slugifyDocumentName(title)}.md`;
+};
+
 /** Derive the writing direction from a language code. */
 export const directionForLanguage = (language: string): "ltr" | "rtl" => {
 	return RIGHT_TO_LEFT_LANGUAGES.test(language) ? "rtl" : "ltr";
@@ -133,9 +155,9 @@ export const createManifest = (id: string, document: ExtractedDocument): Documen
 	assertDocumentName(id);
 
 	const units = document.units.map((unit, index) => ({
-		id: assertUnitId(unit.id, `units[${index}].id`),
+		id: nextUnitId(index),
 		title: unit.title,
-		path: `chapters/${String(index + 1).padStart(3, "0")}-${slugifyDocumentName(unit.title)}.md`,
+		path: nextUnitPath(index, unit.title),
 		source: unit.source
 	}));
 

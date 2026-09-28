@@ -1,5 +1,6 @@
 import { renderMarkdownToHtml } from "../markdown/parse.ts";
 import type { DocumentManifest } from "../model/project.ts";
+import { escapeHtml } from "../shared/escape.ts";
 import { loadTemplateSet, type TemplateSet } from "../shared/templates.ts";
 import { applyTemplate } from "./template.ts";
 
@@ -13,16 +14,6 @@ const defaultLinkOptions: RenderLinkOptions = {
 	indexHref: "/",
 	stylesHref: "/styles.css",
 	unitHref: (unitId) => `/read/${encodeURIComponent(unitId)}`
-};
-
-/** Replace HTML special characters with character references. */
-const escapeHtml = (value: string): string => {
-	return value
-		.replaceAll("&", "&amp;")
-		.replaceAll("<", "&lt;")
-		.replaceAll(">", "&gt;")
-		.replaceAll('"', "&quot;")
-		.replaceAll("'", "&#39;");
 };
 
 /** Render one link to a document unit. */

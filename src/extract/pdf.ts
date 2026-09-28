@@ -8,7 +8,9 @@ import type {
 	ImageInline,
 	SourceLocation
 } from "../model/document.ts";
+import { nextUnitId } from "../model/project.ts";
 import { AppError } from "../shared/errors.ts";
+import { detectImageFormat } from "../shared/image.ts";
 import { slugifyDocumentName } from "../shared/paths.ts";
 import type { ExtractionInput } from "./common.ts";
 
@@ -63,38 +65,6 @@ const createLocation = (sourcePath: string, page: number, confidence?: number): 
 	return location;
 };
 
-type PdfImageFormat = {
-	extension: ".png" | ".jpg" | ".gif" | ".webp";
-	mimeType: string;
-};
-
-/** Detect the image format from the file signature. */
-const detectPdfImageFormat = (bytes: Uint8Array): PdfImageFormat | undefined => {
-	if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50) {
-		return { extension: ".png", mimeType: "image/png" };
-	}
-	if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-		return { extension: ".jpg", mimeType: "image/jpeg" };
-	}
-	if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
-		return { extension: ".gif", mimeType: "image/gif" };
-	}
-	if (
-		bytes.length >= 12 &&
-		bytes[0] === 0x52 &&
-		bytes[1] === 0x49 &&
-		bytes[2] === 0x46 &&
-		bytes[3] === 0x46 &&
-		bytes[8] === 0x57 &&
-		bytes[9] === 0x45 &&
-		bytes[10] === 0x42 &&
-		bytes[11] === 0x50
-	) {
-		return { extension: ".webp", mimeType: "image/webp" };
-	}
-	return undefined;
-};
-
 /** Create an image asset from extracted PDF image data. */
 const createImageAsset = (
 	bytes: Uint8Array,
@@ -105,7 +75,7 @@ const createImageAsset = (
 	width?: number,
 	height?: number
 ): ImageAsset | undefined => {
-	const format = detectPdfImageFormat(bytes);
+	const format = detectImageFormat(bytes);
 	if (format === undefined) {
 		return undefined;
 	}
@@ -158,7 +128,7 @@ const splitIntoUnits = (
 		});
 		return [
 			{
-				id: "unit-001",
+				id: nextUnitId(0),
 				title: "Document",
 				source: createLocation(sourcePath, pageBlocks[0]?.page ?? 1, 0.5),
 				blocks: pageBlocks.map(({ block }) => block)
@@ -174,7 +144,7 @@ const splitIntoUnits = (
 		if (block.kind === "heading") {
 			if (currentBlocks.length > 0) {
 				units.push({
-					id: `unit-${String(units.length + 1).padStart(3, "0")}`,
+					id: nextUnitId(units.length),
 					title: currentTitle,
 					source: createLocation(sourcePath, currentPage, 0.8),
 					blocks: currentBlocks
@@ -193,7 +163,7 @@ const splitIntoUnits = (
 	}
 	if (currentBlocks.length > 0) {
 		units.push({
-			id: `unit-${String(units.length + 1).padStart(3, "0")}`,
+			id: nextUnitId(units.length),
 			title: currentTitle,
 			source: createLocation(sourcePath, currentPage, 0.8),
 			blocks: currentBlocks

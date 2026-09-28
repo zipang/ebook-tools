@@ -28,8 +28,11 @@ import type {
 } from "./types.ts";
 import { extractFirstHeading, stripOuterCodeFence, validateTranslation } from "./validate.ts";
 
-const DEFAULT_CONCURRENCY = 4;
-const MAX_CONCURRENCY = 16;
+/** Number of parallel model calls when the caller gives no limit. */
+export const DEFAULT_CONCURRENCY = 4;
+
+/** Largest number of parallel model calls the pool accepts. */
+export const MAX_CONCURRENCY = 16;
 const CHARS_PER_TOKEN = 4;
 const CACHE_FILE = "reports/translation.cache.json";
 const PROJECT_DIRECTORIES = ["chapters", "assets", "templates", "reports", "generated"];
@@ -284,10 +287,12 @@ const writeProject = async (
 		await mkdir(join(outputDir, directory), { recursive: true });
 	}
 
-	for (const [unitId, result] of results) {
-		const unit = source.manifest.units.find((candidate) => candidate.id === unitId);
+	const unitsById = new Map(source.manifest.units.map((unit) => [unit.id, unit]));
 
-		if (!unit || result.markdown === undefined) {
+	for (const [unitId, result] of results) {
+		const unit = unitsById.get(unitId);
+
+		if (unit === undefined || result.markdown === undefined) {
 			continue;
 		}
 
@@ -363,6 +368,7 @@ export const translateDocument = async (
 
 	const source = await loadSourceProject(repositoryRoot, options.document);
 	const outputDir = resolveDocumentRoot(repositoryRoot, outputName);
+	const unitsById = new Map(source.manifest.units.map((unit) => [unit.id, unit]));
 
 	if (!options.force && (await hasContent(outputDir))) {
 		throw new ValidationError(
@@ -498,11 +504,12 @@ export const translateDocument = async (
 	});
 
 	const ordered: UnitResult[] = [];
+	const resultsByUnitId = new Map(results.map((result) => [result.unitId, result]));
 
 	for (const unit of source.manifest.units) {
-		const result = results.find((candidate) => candidate.unitId === unit.id);
+		const result = resultsByUnitId.get(unit.id);
 
-		if (result) {
+		if (result !== undefined) {
 			ordered.push(result);
 			continue;
 		}
@@ -526,9 +533,9 @@ export const translateDocument = async (
 				continue;
 			}
 
-			const unit = source.manifest.units.find((candidate) => candidate.id === result.unitId);
+			const unit = unitsById.get(result.unitId);
 
-			if (unit) {
+			if (unit !== undefined) {
 				result.markdown = await Bun.file(join(source.documentDir, unit.path)).text();
 				result.translatedTitle = unit.title;
 			}
@@ -559,9 +566,10 @@ export const translateDocument = async (
 		return summary;
 	}
 
-	const firstTranslated = ordered[0]?.status === "translated" || ordered[0]?.status === "cached";
+	const firstUnit = ordered[0];
+	const firstTranslated = firstUnit?.status === "translated" || firstUnit?.status === "cached";
 	const documentTitle = firstTranslated
-		? (ordered[0]?.translatedTitle ?? source.manifest.title)
+		? (firstUnit?.translatedTitle ?? source.manifest.title)
 		: source.manifest.title;
 
 	await writeProject(source, outputDir, outputName, language, byUnit, documentTitle);

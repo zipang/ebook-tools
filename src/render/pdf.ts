@@ -3,6 +3,7 @@ import { type ChildNode, type Element, isTag, isText } from "domhandler";
 import { parseDocument } from "htmlparser2";
 import PDFDocument from "pdfkit";
 import { AppError } from "../shared/errors.ts";
+import { isDirectlyEmbeddableImage } from "../shared/image.ts";
 import { isPathInside, resolveRealPathInside } from "../shared/paths.ts";
 
 export type PdfSection = {
@@ -87,14 +88,7 @@ const addImage = async (
 			return;
 		}
 		let bytes = Buffer.from(await file.arrayBuffer());
-		const isPng =
-			bytes.length >= 8 &&
-			bytes[0] === 0x89 &&
-			bytes[1] === 0x50 &&
-			bytes[2] === 0x4e &&
-			bytes[3] === 0x47;
-		const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-		if (!isPng && !isJpeg) {
+		if (!isDirectlyEmbeddableImage(bytes)) {
 			bytes = Buffer.from(await new Bun.Image(bytes).png().bytes());
 		}
 		document.image(bytes, { fit: [500, 320], align: "center" });

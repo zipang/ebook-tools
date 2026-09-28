@@ -1,6 +1,7 @@
 import { ValidationError } from "../shared/errors.ts";
 import { DEFAULT_MODEL_ID } from "../translate/providers/registry.ts";
 import {
+	DEFAULT_CONCURRENCY,
 	defaultOutDocument,
 	estimateDryRun,
 	normalizeLanguageTag,
@@ -61,8 +62,8 @@ const parseNumber = (value: number | string | undefined, name: string): number |
 	return parsed;
 };
 
-/** Validate the selected unit numbers. */
-const parseUnits = (units: number[] | undefined, total: number): number[] | undefined => {
+/** Validate the selected unit numbers and return them without duplicates. */
+const parseSelectedUnits = (units: number[] | undefined, total: number): number[] | undefined => {
 	if (!units) {
 		return undefined;
 	}
@@ -109,7 +110,7 @@ export const runTranslate = async (
 	}
 
 	const totalUnits = await countUnits(repositoryRoot, options.document);
-	const only = parseUnits(options.only, totalUnits);
+	const only = parseSelectedUnits(options.only, totalUnits);
 	const maxCostUsd = parseNumber(options.maxCost, "--max-cost");
 
 	if (maxCostUsd === 0) {
@@ -122,7 +123,7 @@ export const runTranslate = async (
 			to: language,
 			model,
 			outDocument,
-			concurrency: options.concurrency ?? 4,
+			concurrency: options.concurrency ?? DEFAULT_CONCURRENCY,
 			only,
 			force: options.force,
 			cache: options.cache,

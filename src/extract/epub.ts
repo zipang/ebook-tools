@@ -10,7 +10,9 @@ import type {
 	ImageAsset,
 	SourceLocation
 } from "../model/document.ts";
+import { nextUnitId } from "../model/project.ts";
 import { AppError } from "../shared/errors.ts";
+import { detectImageFormat } from "../shared/image.ts";
 import { slugifyDocumentName } from "../shared/paths.ts";
 import type { ExtractionInput } from "./common.ts";
 
@@ -120,38 +122,6 @@ const resolveArchivePath = (baseDirectory: string, href: string): string => {
 	return resolved;
 };
 
-const detectImageMimeType = (bytes: Uint8Array): string | undefined => {
-	if (
-		bytes.length >= 8 &&
-		bytes[0] === 0x89 &&
-		bytes[1] === 0x50 &&
-		bytes[2] === 0x4e &&
-		bytes[3] === 0x47
-	) {
-		return "image/png";
-	}
-	if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-		return "image/jpeg";
-	}
-	if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
-		return "image/gif";
-	}
-	if (
-		bytes.length >= 12 &&
-		bytes[0] === 0x52 &&
-		bytes[1] === 0x49 &&
-		bytes[2] === 0x46 &&
-		bytes[3] === 0x46 &&
-		bytes[8] === 0x57 &&
-		bytes[9] === 0x45 &&
-		bytes[10] === 0x42 &&
-		bytes[11] === 0x50
-	) {
-		return "image/webp";
-	}
-	return undefined;
-};
-
 const isExternalHref = (href: string): boolean => /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href);
 
 const normalizeText = (text: string): string => {
@@ -187,15 +157,8 @@ const createSourceLocation = (
 	return location;
 };
 
-const IMAGE_EXTENSIONS: Record<string, string> = {
-	"image/gif": ".gif",
-	"image/jpeg": ".jpg",
-	"image/png": ".png",
-	"image/webp": ".webp"
-};
-
-const createAssetFileName = (resourcePath: string, mimeType: string, context: ExtractionContext): string => {
-	const extension = IMAGE_EXTENSIONS[mimeType] ?? ".bin";
+/** Build a unique asset file name for one archive resource. */
+const createAssetFileName = (resourcePath: string, extension: string, context: ExtractionContext): string => {
 	const baseName = slugifyDocumentName(posix.basename(resourcePath, posix.extname(resourcePath)));
 	let fileName = `${baseName}${extension}`;
 	let suffix = 2;
@@ -235,8 +198,8 @@ const registerImageLink = (
 		return undefined;
 	}
 
-	const mimeType = detectImageMimeType(bytes);
-	if (mimeType === undefined) {
+	const format = detectImageFormat(bytes);
+	if (format === undefined) {
 		context.warnings.push({
 			code: "unsupported-structure",
 			message: `Image resource is not a supported image format: ${resourcePath}`,
@@ -246,12 +209,12 @@ const registerImageLink = (
 		return undefined;
 	}
 
-	const fileName = createAssetFileName(resourcePath, mimeType, context);
+	const fileName = createAssetFileName(resourcePath, format.extension, context);
 	const asset: ImageAsset = {
 		id: `asset-${String(context.assets.length + 1).padStart(3, "0")}`,
 		path: `assets/images/${fileName}`,
 		bytes,
-		mimeType,
+		mimeType: format.mimeType,
 		source: location
 	};
 	if (altText.length > 0) {
@@ -642,7 +605,7 @@ export const extractEpub = async (input: ExtractionInput): Promise<ExtractedDocu
 	}
 	const merged = mergeTitleOnlyChapters(drafts);
 	merged.forEach((chapter, index) => {
-		const unitId = `unit-${String(index + 1).padStart(3, "0")}`;
+		const unitId = nextUnitId(index);
 		for (const path of chapter.paths) {
 			context.unitIdsByPath.set(path, unitId);
 		}
@@ -650,7 +613,7 @@ export const extractEpub = async (input: ExtractionInput): Promise<ExtractedDocu
 	const units: DocumentUnit[] = merged.map((chapter, index) => {
 		const markdown = rewriteLinks(chapter.markdown, context, chapter.path, chapter.source);
 		return {
-			id: `unit-${String(index + 1).padStart(3, "0")}`,
+			id: nextUnitId(index),
 			title: chapter.title,
 			source: chapter.source,
 			blocks: [],
