@@ -1,6 +1,6 @@
 # Extract and reformat PDF and EPUB documents
 
-This project turns digital PDF and EPUB files into editable Markdown projects. It serves a document as local HTML, builds static HTML or PDF, removes units, and translates a document into another language.
+This project turns digital PDF and EPUB files into editable Markdown projects. It serves a document project as local HTML, builds static HTML or PDF, removes units, and translates a document project into another language.
 
 The project is a set of services. The command line calls those services, and a future Web UI calls the same services. The services return plain data and never write to the terminal, so every user interface reports results the same way.
 
@@ -10,15 +10,15 @@ Each service is one function under `src/commands/`. It takes plain values, inclu
 
 | Service | Source | Purpose |
 |---|---|---|
-| `extract` | `src/commands/extract.ts` | Turn a source file into a document project |
-| `serve` | `src/commands/serve.ts` | Serve one document as local HTML |
+| `extract` | `src/commands/extract.ts` | Turn one document into a document project |
+| `serve` | `src/commands/serve.ts` | Serve one document project as local HTML |
 | `build` | `src/commands/build.ts` | Write static HTML or PDF output |
 | `delete` | `src/commands/delete.ts` | Remove units and renumber the rest |
-| `translate` | `src/commands/translate.ts` | Write a translated sibling project |
+| `translate` | `src/commands/translate.ts` | Write a translated sibling document project |
 
 ### extract
 
-The service reads one source file, or every supported file under `sources/`, and writes one document project per source.
+The service reads one document, or every supported document under `sources/`, and writes one document project per document.
 
 ```ts
 import { runExtract } from "./src/commands/extract.ts";
@@ -32,7 +32,7 @@ result.skippedPaths; // Sources the command ignored
 
 ### serve
 
-The service starts a local server for one document and returns the running server with its address.
+The service starts a local server for one document project and returns the running server with its address.
 
 ```ts
 import { runServe } from "./src/commands/serve.ts";
@@ -113,7 +113,7 @@ The command line is an adapter over the services. Run these commands from the re
 bun run extract -- --input sources/books/example.epub --document example-book
 ```
 
-The `--document` option is optional. Without it, the service derives a safe directory name from the source filename. Use `--force` to replace an existing document project.
+The `--document` option names the document project. It is optional. Without it, the service derives a safe name from the filename. Use `--force` to replace an existing document project.
 
 ### Extract the source library
 
@@ -121,9 +121,9 @@ The `--document` option is optional. Without it, the service derives a safe dire
 bun run extract -- --all
 ```
 
-The command scans `sources/` recursively. It creates one project under `documents/<document-name>/` for each supported source. Nested files with the same derived name cause a collision error.
+The command scans `sources/` recursively. It creates one document project under `documents/<document-name>/` for each supported document. Nested files with the same derived name cause a collision error.
 
-### Preview a document
+### Preview a document project
 
 ```bash
 bun run serve -- --document example-book --port 3000
@@ -155,7 +155,7 @@ bun run delete -- --document example-book --parts 1 3 8
 
 The command removes the numbered units. The numbers start at 1 and follow the index order. The remaining units keep their order and get new numbers that close the gaps. Internal links update to the new unit numbers. A link to a removed unit becomes `(#)`. Images that no unit references are removed. At least one unit must remain.
 
-### Translate one document
+### Translate one document project
 
 ```bash
 # Estimate the cost without calling a model
@@ -180,7 +180,7 @@ bun run translate -- --document example-book --to fr --json
 bun run translate -- --document example-book --to fr --force
 ```
 
-`translate` reads one extracted document and writes a standalone sibling project `documents/<document-name>-<lang>/`. The sibling project keeps the unit ids, unit paths, images, and templates of the source, so `serve` and `build` accept it without any change. A structure violation is never retried. The unit is marked failed, and the run returns a non-zero exit code, unless `--best-effort` copies the failed units from the source.
+`translate` reads one document project and writes a standalone sibling project `documents/<document-name>-<lang>/`. The sibling project keeps the unit ids, unit paths, images, and templates of the source, so `serve` and `build` accept it without any change. A structure violation is never retried. The unit is marked failed, and the run returns a non-zero exit code, unless `--best-effort` copies the failed units from the source.
 
 Model access uses the OpenCode Zen gateway. Export `OPENCODE_API_KEY` before a run. `OPENCODE_ZEN_BASE_URL` overrides the default `https://opencode.ai/zen/v1`. The models are declared in `src/translate/providers/registry.ts` with their endpoint family and price.
 
@@ -218,8 +218,8 @@ bun install
 ## Project layout
 
 ```text
-sources/                         Original PDF and EPUB files
-documents/
+sources/                         The documents: original PDF and EPUB files
+documents/                       The document projects
   <document-name>/
     manifest.json                Ordered unit and asset index
     chapters/                    Editable Markdown units
@@ -241,6 +241,8 @@ scripts/                         One-off tools, such as the model benchmark
 tests/                           Fixtures, and the unit tests kept from before
 roadmap/                         One directory per ticket, with its spec and plan
 ```
+
+The folder name `documents/` holds document projects, not documents. A document stays in `sources/`, and the project beside it in `documents/` is the editable form of that document.
 
 The source is layered. A module imports from the layers below it and never from a layer above it. `src/AGENTS.md` states the rule for agents.
 
@@ -266,8 +268,9 @@ The project uses tabs in source files and two spaces in Markdown. Do not commit 
 
 ## Glossary
 
-- **Document project:** The editable folder under `documents/<document-name>/` for one source document.
-- **Unit:** One ordered Markdown section, such as an EPUB spine document or a detected PDF section.
+- **Document:** The original file under `sources/`, either a digital PDF or an unencrypted EPUB. The command line calls it a source. One document produces exactly one document project.
+- **Document project:** The editable folder under `documents/<document-name>/` for one document. It holds Markdown, images, and templates, not the original file.
+- **Unit:** One ordered Markdown section of a document project, such as one EPUB spine item or one detected PDF section.
 - **Service:** One function that performs one task and returns plain data. A service never writes to the terminal and never starts a server.
 - **Adapter:** A user interface over the services. The command line and the preview server are adapters, and a future Web UI is one too.
 - **Extraction report:** A record of extracted counts, source locations, warnings, and resource status.
